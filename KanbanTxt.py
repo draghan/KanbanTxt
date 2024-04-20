@@ -610,23 +610,29 @@ class KanbanTxtViewer:
                     r'^(?P<isDone>x )? '
                     r'?(?P<priority>\([A-Z]\))? '
                     r'?(?P<dates>\d\d\d\d-\d\d-\d\d( \d\d\d\d-\d\d-\d\d)?)? '
-                    r'?(?P<subject>[^@\+]+) ?' 
-                    r'?(?P<project>\+[^@\s]+)? '
-                    r'?(?P<context>@\S+)?',
+                    r'?(?P<subject>.+)',
                     task)
-                
-                # special key-vals can occur basically everywhere in the line,
-                # so don't try to fit it into the structured regex above, just
-                # make a new search
+
+                # special key-vals, context or project tags may occur basically everywhere in the line,
+                # so don't try to fit it into the structured regex above, just make a new search
                 special_kv_r = re.compile(r'(?P<key>[^:\s]+):(?P<val>[^:\s]+)')
                 special_kv_data = [m.groupdict() for m in special_kv_r.finditer(task)]
+
+                project_r = re.compile(r' (?P<project>\+\S+)')
+                project_data = [m.groupdict() for m in project_r.finditer(task)]
+
+                context_r = re.compile(r' (?P<context>@\S+)')
+                context_data = [m.groupdict() for m in context_r.finditer(task)]
 
                 task = task_data.groupdict()
                 task['is_important'] = False
 
                 subject = task.get('subject', '???')
-                # remove any special key-val strings from the subject text for clarity
+
+                # remove any special key-val strings, project and context tags from the subject text for clarity
                 subject = re.sub(special_kv_r, "", subject)
+                subject = re.sub(project_r, "", subject)
+                subject = re.sub(context_r, "", subject)
 
                 category = "To Do"
 
@@ -662,7 +668,6 @@ class KanbanTxtViewer:
                     elif len(dates) == 2:
                         start_date = date.fromisoformat(dates[1])
                         end_date = date.fromisoformat(dates[0])
-                    
 
                 card_bg = self.COLORS['card-background']
                 font = 'main'
@@ -677,8 +682,8 @@ class KanbanTxtViewer:
                     'subject': subject,
                     'bg': card_bg,
                     'font': font,
-                    'project': task.get('project'),
-                    'context': task.get('context'),
+                    'project': project_data,
+                    'context': context_data,
                     'start_date': start_date,
                     'end_date': end_date,
                     'state': category,
@@ -826,26 +831,28 @@ class KanbanTxtViewer:
                 wraplength=85, 
 
             )
-            if project or context:
+            if (project or context) and (len(project) > 0 or len(context) > 0):
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=0)
             else:
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=(0,10))
 
         # Add project and context tags if needed
-        if project:
+        if project and len(project) > 0:
+            project_string = ", ".join([p["project"] for p in project])
             project_label = tk.Label(
                 ui_card, 
-                text=project, 
+                text=project_string, 
                 fg=self.COLORS["project"], 
                 bg=ui_card['bg'], 
                 anchor=tk.E
             )
             project_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
         
-        if context:
+        if context and len(context) > 0:
+            context_string = ", ".join([c["context"] for c in context])
             context_label = tk.Label(
                 ui_card, 
-                text=context, 
+                text=context_string, 
                 fg=self.COLORS['context'], 
                 bg=ui_card['bg'], 
                 anchor=tk.E
