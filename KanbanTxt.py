@@ -565,7 +565,7 @@ class KanbanTxtViewer:
             activebackground=color,
             activeforeground=activetextcolor,
             borderwidth=0,
-            font=tkFont.nametofont('main'),
+            font=('main', 12),
             command=command)
         button.pack(padx=bordersize, pady=bordersize, fill='both')
         if tooltip is not None:
