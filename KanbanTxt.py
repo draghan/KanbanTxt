@@ -73,6 +73,11 @@ class KanbanTxtViewer:
 
     FONTS = []
 
+    KANBAN_KEY = "knbn"
+
+    KANBAN_VAL_IN_PROGRESS = "in_progress"
+
+    KANBAN_VAL_VALIDATION = "validation"
 
     def __init__(self, file='', darkmode=False) -> None:
         self.darkmode = darkmode
@@ -550,20 +555,28 @@ class KanbanTxtViewer:
 
                 category = "To Do"
 
+                category_map = {
+                    self.KANBAN_VAL_IN_PROGRESS: 'In progress',
+                    self.KANBAN_VAL_VALIDATION: 'Validation',
+                }
+
+                for i in range(0, len(special_kv_data)):
+                    kv = special_kv_data[i]
+                    if kv['key'] == self.KANBAN_KEY:
+                        v = kv['val']
+                        if v in category_map.keys():
+                            category = category_map[v]
+                            break
+
                 if task.get("isDone"):
                     category = "Done"
                 
                 elif task.get("priority"):
                     priority = task['priority']
 
-                    if priority == "(B)":
+                    if priority == "(B)" and category == "To Do":
                         task['is_important'] = True
 
-                    elif priority == "(A)":
-                        category ='In progress'
-                    
-                    elif priority == "(C)":
-                        category = 'Validation'
 
                 if task['is_important']:
                     important_tasks.append(task)
@@ -921,10 +934,13 @@ class KanbanTxtViewer:
 
 
     def set_state(self, task, newState):
-        task = re.sub(r'^\([A-Z]\) ', '', task)
+        task = re.sub(rf'\s{self.KANBAN_KEY}:[^\s^:]+', '', task)
         task = re.sub(r'^x ', '', task)
         task = re.sub(r'^ ', '', task)
-        task = newState + ' ' + task
+        if newState == 'x':
+            task = newState + ' ' + task
+        else:
+            task = task + newState
         return task
     
 
@@ -942,13 +958,13 @@ class KanbanTxtViewer:
     
     def move_to_important(self, event=None):
         self.set_editor_line_state('(B)')
-    
+
     def move_to_in_progress(self, event=None):
-        self.set_editor_line_state('(A)')
+        self.set_editor_line_state(f' {self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS}')
 
     def move_to_validation(self, event=None):
-        self.set_editor_line_state('(C)')
-    
+        self.set_editor_line_state(f' {self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION}')
+
     def move_to_done(self, event=None):
         self.set_editor_line_state('x')
 
