@@ -45,6 +45,7 @@ class KanbanTxtViewer:
             'main-text': '#4c6066',
             'editor-text': '#000000',
             'button': '#415358',
+            'kv-data': '#b8becc',
         },
 
         'DARK_COLORS' : {
@@ -66,6 +67,7 @@ class KanbanTxtViewer:
             'main-text': '#b6cbd1',
             'editor-text': '#cee4eb',
             'button': '#b6cbd1',
+            'kv-data': '#43454a',
         },
     }
 
@@ -533,8 +535,18 @@ class KanbanTxtViewer:
                     r'?(?P<context>@\S+)?',
                     task)
                 
+                # special key-vals can occur basically everywhere in the line,
+                # so don't try to fit it into the structured regex above, just
+                # make a new search
+                special_kv_r = re.compile(r'(?P<key>[^:\s]+):(?P<val>[^:\s]+)')
+                special_kv_data = [m.groupdict() for m in special_kv_r.finditer(task)]
+
                 task = task_data.groupdict()
                 task['is_important'] = False
+
+                subject = task.get('subject', '???')
+                # remove any special key-val strings from the subject text for clarity
+                subject = re.sub(special_kv_r, "", subject)
 
                 category = "To Do"
 
@@ -582,7 +594,7 @@ class KanbanTxtViewer:
 
                 self.draw_card(
                     card_parent,
-                    task.get('subject', '???'),
+                    subject,
                     card_bg,
                     font,
                     is_important=task['is_important'],
@@ -591,7 +603,8 @@ class KanbanTxtViewer:
                     start_date=start_date,
                     end_date=end_date,
                     state=category,
-                    name="task#" + str(index + 1)
+                    name="task#" + str(index + 1),
+                    special_kv_data=special_kv_data,
                 )
 
         tasks['To Do'] = important_tasks + tasks['To Do']
@@ -650,7 +663,8 @@ class KanbanTxtViewer:
         start_date=None,
         end_date=None,
         state='To Do',
-        name=""
+        name="",
+        special_kv_data=None,
     ):
         # Create the card frame
         ui_card = tk.Frame(parent, bg=bg, height=200)
@@ -741,6 +755,18 @@ class KanbanTxtViewer:
                 anchor=tk.E
             )
             context_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+
+        if special_kv_data is not None and len(special_kv_data) > 0:
+            special_kv_data_string = ", ".join([f"{special_kv_data_entry['key']}:{special_kv_data_entry['val']}" for
+                                                special_kv_data_entry in special_kv_data])
+            special_kv_entry_label = tk.Label(
+                ui_card,
+                text=special_kv_data_string,
+                fg=self.COLORS['kv-data'],
+                bg=ui_card['bg'],
+                anchor=tk.E
+            )
+            special_kv_entry_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
 
         card_label.bind('<Button-1>', self.highlight_task)
 
