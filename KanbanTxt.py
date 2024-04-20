@@ -573,8 +573,6 @@ class KanbanTxtViewer:
             "Done": []
         }
 
-        important_tasks = []
-
         # Erase the columns content
         for ui_column_name, ui_column in self.ui_columns.items():
             ui_column.content.pack_forget()
@@ -586,6 +584,7 @@ class KanbanTxtViewer:
 
         todo_list = p_todo_txt.split("\n")
 
+        cards_data = []
         for index, task in enumerate(todo_list):
             if len(task) != 0:
                 task_data = re.match(
@@ -654,22 +653,37 @@ class KanbanTxtViewer:
 
                 card_parent = self.ui_columns[category].content
 
-                self.draw_card(
-                    card_parent,
-                    subject,
-                    card_bg,
-                    font,
-                    project=task.get('project'), 
-                    context=task.get('context'),
-                    start_date=start_date,
-                    end_date=end_date,
-                    state=category,
-                    name="task#" + str(index + 1),
-                    special_kv_data=special_kv_data,
-                    priority=priority
-                )
+                cards_data.append({
+                    'parent': card_parent,
+                    'subject': subject,
+                    'bg': card_bg,
+                    'font': font,
+                    'project': task.get('project'),
+                    'context': task.get('context'),
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'state': category,
+                    'name': "task#" + str(index + 1),
+                    'special_kv_data': special_kv_data,
+                    'priority': priority
+                })
 
-        tasks['To Do'] = important_tasks + tasks['To Do']
+        cards_data.sort(key=lambda d: d['priority'] if d['priority'] is not None else 'z')
+        for card in cards_data:
+            self.draw_card(
+                card['parent'],
+                card['subject'],
+                card['bg'],
+                card['font'],
+                project=card['project'],
+                context=card['context'],
+                start_date=card['start_date'],
+                end_date=card['end_date'],
+                state=card['state'],
+                name=card['name'],
+                special_kv_data=card['special_kv_data'],
+                priority=card['priority']
+            )
 
         # Compute proportion for each column tasks and update progress bars
         tasks_number = {
