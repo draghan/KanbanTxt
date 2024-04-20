@@ -46,6 +46,13 @@ class KanbanTxtViewer:
             'editor-text': '#000000',
             'button': '#415358',
             'kv-data': '#b8becc',
+            'priority_color_scale': [
+                "#ec1c24",
+                "#ff7f27",
+                "#ffca18",
+                "#77dd77",
+                "#aec6cf"
+            ]
         },
 
         'DARK_COLORS' : {
@@ -68,6 +75,13 @@ class KanbanTxtViewer:
             'editor-text': '#cee4eb',
             'button': '#b6cbd1',
             'kv-data': '#43454a',
+            'priority_color_scale': [
+                "#ff6961",
+                "#ffb347",
+                "#fdfd96",
+                "#77dd77",
+                "#aec6cf"
+            ]
         },
     }
 
@@ -95,7 +109,7 @@ class KanbanTxtViewer:
 
         self._after_id = -1
         
-        self.draw_ui(1000, 500, 0, 0)
+        self.draw_ui(1000, 700, 0, 0)
 
         
     def draw_ui(self, window_width, window_height, window_x, window_y):
@@ -200,15 +214,15 @@ class KanbanTxtViewer:
 
         # MEMO
         cheat_sheet = tk.Label(edition_frame, text='------ Memo ------\n'
-            '(A) :  in progress\n'
-            '(B) :  important todo\n'
-            '(C) :  validation\n'
-            'Ctrl + s :  refresh and save\n'
-            'Alt + ↑ / ↓ :  move line up / down\n', 
-            bg=self.COLORS['editor-background'], 
-            anchor=tk.NW, 
-            justify='left', 
-            fg=self.COLORS['main-text'], 
+            'x \t\t—  done\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  in progress\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  validation\n'
+            'Ctrl + s \t\t—  refresh and save\n'
+            'Alt + ↑ / ↓ \t—  move line up / down\n',
+            bg=self.COLORS['editor-background'],
+            anchor=tk.NW,
+            justify='left',
+            fg=self.COLORS['main-text'],
             font=tkFont.nametofont('main'),
         )
         cheat_sheet.pack(side="top", fill="x", padx=10)
@@ -250,13 +264,13 @@ class KanbanTxtViewer:
             command=self.move_to_todo
         ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
 
-        # Set as important
+        # Cycle through priorities
         self.create_button(
-            editor_toolbar, 
-            '✅→⚫', 
-            self.COLORS['important'], 
-            command=self.move_to_important
-        ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
+            editor_toolbar,
+            '⧉ ↻',
+            self.COLORS['priority_color_scale'][4],
+            command=self.change_priority,
+        ).grid(row=0, sticky='ew', column=4, padx=5, pady=5)
 
         # Move to In progress
         self.create_button(
@@ -264,7 +278,7 @@ class KanbanTxtViewer:
             '✅→⚫', 
             self.COLORS['In progress'], 
             command=self.move_to_in_progress
-        ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
+        ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
 
         # Move to Validation
         self.create_button(
@@ -272,7 +286,7 @@ class KanbanTxtViewer:
             '✅→⚫', 
             self.COLORS['Validation'], 
             command=self.move_to_validation
-        ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
+        ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
 
         # Move to Done
         self.create_button(
@@ -280,15 +294,58 @@ class KanbanTxtViewer:
             '✅→⚫', 
             self.COLORS['Done'], 
             command=self.move_to_done
-        ).grid(row=0, sticky='ew', column=4, padx=5, pady=5)
+        ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
 
-        # Move line up
+        # Set prios A..E
+        self.create_button(
+            editor_toolbar,
+            f'⧉ A',
+            self.COLORS['priority_color_scale'][0],
+            command=lambda: self.change_priority(None, 'A')
+        ).grid(row=3, sticky='ew', column=0, padx=5, pady=5)
+
+        self.create_button(
+            editor_toolbar,
+            f'⧉ B',
+            self.COLORS['priority_color_scale'][1],
+            command=lambda: self.change_priority(None, 'B')
+        ).grid(row=3, sticky='ew', column=1, padx=5, pady=5)
+
+        self.create_button(
+            editor_toolbar,
+            f'⧉ C',
+            self.COLORS['priority_color_scale'][2],
+            command=lambda: self.change_priority(None, 'C')
+        ).grid(row=3, sticky='ew', column=2, padx=5, pady=5)
+
+        self.create_button(
+            editor_toolbar,
+            f'⧉ D',
+            self.COLORS['priority_color_scale'][3],
+            command=lambda: self.change_priority(None, 'D')
+        ).grid(row=3, sticky='ew', column=3, padx=5, pady=5)
+
+        self.create_button(
+            editor_toolbar,
+            f'⧉ E',
+            self.COLORS['priority_color_scale'][4],
+            command=lambda: self.change_priority(None, 'E')
+        ).grid(row=3, sticky='ew', column=4, padx=5, pady=5)
+
+        self.create_button(
+            editor_toolbar,
+            f'⧉ ☒',
+            self.COLORS['important'],
+            command=lambda: self.change_priority(None, '')
+        ).grid(row=2, sticky='ew', column=4, padx=5, pady=5)
+    
+        # Add date
         self.create_button(
             editor_toolbar, 
             '+ date', 
             self.COLORS['button'], 
             command=self.add_date
-        ).grid(row=1, sticky='ew', column=0, padx=5, pady=5)
+        ).grid(row=2, sticky='ew', column=0, padx=5, pady=5)
 
         # Move line up
         self.create_button(
@@ -296,7 +353,7 @@ class KanbanTxtViewer:
             '↑', 
             self.COLORS['button'], 
             command=self.move_line_up
-        ).grid(row=1, sticky='ew', column=1, padx=5, pady=5)
+        ).grid(row=2, sticky='ew', column=1, padx=5, pady=5)
 
         # Move line down
         self.create_button(
@@ -304,7 +361,7 @@ class KanbanTxtViewer:
             '↓', 
             self.COLORS['button'], 
             command=self.move_line_down
-        ).grid(row=1, sticky='ew', column=2, padx=5, pady=5)
+        ).grid(row=2, sticky='ew', column=2, padx=5, pady=5)
 
         # Delete line
         self.create_button(
@@ -312,7 +369,7 @@ class KanbanTxtViewer:
             'Delete', 
             self.COLORS['button'], 
             command=self.remove_line
-        ).grid(row=1, sticky='ew', column=3, padx=5, pady=5)
+        ).grid(row=2, sticky='ew', column=3, padx=5, pady=5)
 
         editor_toolbar.columnconfigure(0, weight=1, uniform='toolbar-item')
         editor_toolbar.columnconfigure(1, weight=1, uniform='toolbar-item')
@@ -333,7 +390,7 @@ class KanbanTxtViewer:
         self.text_editor.bind('<Alt-Up>', self.move_line_up)
         self.text_editor.bind('<Alt-Down>', self.move_line_down)
         self.text_editor.bind('<Control-Key-1>', self.move_to_todo)
-        self.text_editor.bind('<Control-Key-2>', self.move_to_important)
+        self.text_editor.bind('<Control-Key-2>', self.change_priority)
         self.text_editor.bind('<Control-Key-3>', self.move_to_in_progress)
         self.text_editor.bind('<Control-Key-4>', self.move_to_validation)
         self.text_editor.bind('<Control-Key-5>', self.move_to_done)
@@ -570,19 +627,13 @@ class KanbanTxtViewer:
 
                 if task.get("isDone"):
                     category = "Done"
-                
-                elif task.get("priority"):
-                    priority = task['priority']
 
-                    if priority == "(B)" and category == "To Do":
-                        task['is_important'] = True
+                priority = None
+                if task.get("priority"):
+                    priority = task['priority'][1]  # get only letter without parenthesis
 
+                tasks[category].append(task)
 
-                if task['is_important']:
-                    important_tasks.append(task)
-                else: 
-                    tasks[category].append(task)
-                
                 start_date = None
                 end_date = None
                 if task.get('dates'):
@@ -602,15 +653,12 @@ class KanbanTxtViewer:
                     font = 'done-task'
 
                 card_parent = self.ui_columns[category].content
-                if task.get('is_important', False):
-                    card_parent = important_frame
 
                 self.draw_card(
                     card_parent,
                     subject,
                     card_bg,
                     font,
-                    is_important=task['is_important'],
                     project=task.get('project'), 
                     context=task.get('context'),
                     start_date=start_date,
@@ -618,6 +666,7 @@ class KanbanTxtViewer:
                     state=category,
                     name="task#" + str(index + 1),
                     special_kv_data=special_kv_data,
+                    priority=priority
                 )
 
         tasks['To Do'] = important_tasks + tasks['To Do']
@@ -670,7 +719,6 @@ class KanbanTxtViewer:
         subject, 
         bg, 
         font='main', 
-        is_important=False, 
         project=None, 
         context=None, 
         start_date=None,
@@ -678,22 +726,24 @@ class KanbanTxtViewer:
         state='To Do',
         name="",
         special_kv_data=None,
+        priority=None
     ):
         # Create the card frame
         ui_card = tk.Frame(parent, bg=bg, height=200)
 
         subject_padx = 10
 
-        # If needed add a red border and an asterisk on important card
-        if is_important: 
-            important_border = tk.Frame(ui_card, bg=self.COLORS["important"], width="3")
+        # If needed add a color border for priority marking
+        if priority is not None:
+            prio_color = self.get_priority_color(priority)
+            important_border = tk.Frame(ui_card, bg=prio_color, width="3")
             important_border.pack(side="left", fill='y')
             important_label = tk.Label(
-                ui_card, 
-                text="*", 
-                fg=self.COLORS["important"], 
-                bg=ui_card['bg'], 
-                anchor=tk.W, 
+                ui_card,
+                text=priority,
+                fg=prio_color,
+                bg=ui_card['bg'],
+                anchor=tk.W,
                 font=tkFont.Font(family='arial', size=18, weight=tkFont.BOLD)
             )
             important_label.pack(side="left", anchor=tk.NW, padx=0, pady=(5,0))
@@ -942,7 +992,25 @@ class KanbanTxtViewer:
         else:
             task = task + newState
         return task
-    
+
+    def set_priority(self, task, new_priority):
+        priority_done_r = re.compile(r'^x \([A-Z]\) ')
+        priority_not_done_r = re.compile(r'^\([A-Z]\) ')
+        had_priority = True if re.match(priority_done_r, task) or re.match(priority_not_done_r, task) else False
+        is_done = True if re.match(r'^x ', task) else False
+
+        if is_done:
+            if had_priority:
+                result = f"x {re.sub(priority_done_r, new_priority, task)}"
+            else:
+                task_without_done_marking = task[2:]
+                result = f"x {new_priority}{task_without_done_marking}"
+        else:
+            if had_priority:
+                result = re.sub(priority_not_done_r, new_priority, task)
+            else:
+                result = f"{new_priority}{task}"
+        return result
 
     def set_editor_line_state(self, new_state):
         current_line = self.text_editor.get("insert linestart", "insert lineend")
@@ -952,12 +1020,40 @@ class KanbanTxtViewer:
         self.text_editor.mark_set('insert', 'insert linestart -1l')
         self.reload_and_save()
 
+    def set_editor_line_priority(self, new_priority_override=None):
+        current_line = self.text_editor.get("insert linestart", "insert lineend")
+        if new_priority_override is None:
+            priority_match = re.match(r'^(?P<isDone>x )?(?P<priority>\([A-Z]\))?', current_line)
+            highest_prio = 'A'
+            lowest_prio = 'E'
+            new_priority = f"({lowest_prio}) "
+            if priority_match['priority']:
+                current_priority = priority_match['priority']
+                current_priority_code = ord(current_priority[1])
+                new_priority_code = current_priority_code - 1
+                if current_priority_code == ord(highest_prio):
+                    new_priority = ""
+                else:
+                    if new_priority_code < ord(highest_prio):
+                        new_priority_code = ord(lowest_prio)
+                    new_priority = f"({chr(new_priority_code)}) "
+        else:
+            if len(new_priority_override) > 0:
+                new_priority = f"({new_priority_override}) "
+            else:
+                new_priority = f""
+
+        current_line = self.set_priority(current_line, new_priority)
+        self.text_editor.delete("insert linestart", "insert lineend + 1c")
+        self.text_editor.insert("insert linestart", current_line + '\n')
+        self.text_editor.mark_set('insert', 'insert linestart -1l')
+        self.reload_and_save()
 
     def move_to_todo(self, event=None):
         self.set_editor_line_state('')
-    
-    def move_to_important(self, event=None):
-        self.set_editor_line_state('(B)')
+
+    def change_priority(self, event=None, new_priority=None):
+        self.set_editor_line_priority(new_priority)
 
     def move_to_in_progress(self, event=None):
         self.set_editor_line_state(f' {self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS}')
@@ -1023,6 +1119,12 @@ class KanbanTxtViewer:
         searched_task_line = event.widget.winfo_name().replace("task#", "")
         self.text_editor.mark_set('insert', searched_task_line + ".0")
         self.text_editor.see('insert')
+
+    def get_priority_color(self, current_priority):
+        index = ord(current_priority) - ord('A')
+        if index >= len(self.COLORS['priority_color_scale']) or index < 0:
+            index = -1
+        return self.COLORS['priority_color_scale'][index]
 
 
 def main(args):
