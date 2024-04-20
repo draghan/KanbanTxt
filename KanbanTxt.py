@@ -22,6 +22,7 @@ import tkinter as tk
 from tkinter import filedialog
 import tkinter.font as tkFont
 import argparse
+from idlelib.tooltip import Hovertip
 
 class KanbanTxtViewer:
 
@@ -38,7 +39,7 @@ class KanbanTxtViewer:
             "important": "#a7083b",
             "project": '#00b6e4',
             'context': '#1c9c6d',
-            'main-background': "#ffffff",
+            'main-background': "#C0D6E8",
             'card-background': '#ffffff',
             'done-card-background': '#edf5f7',
             'editor-background': '#cae1e8',
@@ -157,26 +158,28 @@ class KanbanTxtViewer:
         # HEADER
         editor_header = tk.Frame(edition_frame, bg=self.COLORS['editor-background'])
         editor_header.pack(side='top', fill='both', expand=0, padx=10, pady=0)
-        
-        save_button = self.create_button(
-            editor_header,
-            text="Save",
-            bordersize=2,
-            color=self.COLORS['button'],
-            activetextcolor=self.COLORS['main-background'],
-            command=self.reload_and_create_file
-        )
-        save_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
-        
+
         load_button = self.create_button(
             editor_header,
-            text="Load",
+            text="📂",
             bordersize=2,
             color=self.COLORS['button'],
             activetextcolor=self.COLORS['main-background'],
-            command=self.open_file
+            command=self.open_file,
+            tooltip="Open file"
         )
         load_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
+
+        save_button = self.create_button(
+            editor_header,
+            text="⟳",
+            bordersize=2,
+            color=self.COLORS['button'],
+            activetextcolor=self.COLORS['main-background'],
+            command=self.reload_and_create_file,
+            tooltip="Reload UI and save file"
+        )
+        save_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
 
         # Light mode / dark mode switch
         button_color = self.COLORS['button']
@@ -261,7 +264,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '✅→⚫', 
             self.COLORS['To Do'], 
-            command=self.move_to_todo
+            command=self.move_to_todo,
+            tooltip="Move task to To Do"
         ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
 
         # Cycle through priorities
@@ -270,6 +274,7 @@ class KanbanTxtViewer:
             '⧉ ↻',
             self.COLORS['priority_color_scale'][4],
             command=self.change_priority,
+            tooltip="Change priority to higher"
         ).grid(row=0, sticky='ew', column=4, padx=5, pady=5)
 
         # Move to In progress
@@ -277,7 +282,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '✅→⚫', 
             self.COLORS['In progress'], 
-            command=self.move_to_in_progress
+            command=self.move_to_in_progress,
+            tooltip="Move task to In progress"
         ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
 
         # Move to Validation
@@ -285,7 +291,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '✅→⚫', 
             self.COLORS['Validation'], 
-            command=self.move_to_validation
+            command=self.move_to_validation,
+            tooltip="Move task to Validation"
         ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
 
         # Move to Done
@@ -293,7 +300,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '✅→⚫', 
             self.COLORS['Done'], 
-            command=self.move_to_done
+            command=self.move_to_done,
+            tooltip="Move task to Done"
         ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
 
         # Set prios A..E
@@ -301,42 +309,48 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ A',
             self.COLORS['priority_color_scale'][0],
-            command=lambda: self.change_priority(None, 'A')
+            command=lambda: self.change_priority(None, 'A'),
+            tooltip="Set priority to A"
         ).grid(row=3, sticky='ew', column=0, padx=5, pady=5)
 
         self.create_button(
             editor_toolbar,
             f'⧉ B',
             self.COLORS['priority_color_scale'][1],
-            command=lambda: self.change_priority(None, 'B')
+            command=lambda: self.change_priority(None, 'B'),
+            tooltip="Set priority to B"
         ).grid(row=3, sticky='ew', column=1, padx=5, pady=5)
 
         self.create_button(
             editor_toolbar,
             f'⧉ C',
             self.COLORS['priority_color_scale'][2],
-            command=lambda: self.change_priority(None, 'C')
+            command=lambda: self.change_priority(None, 'C'),
+            tooltip="Set priority to C"
         ).grid(row=3, sticky='ew', column=2, padx=5, pady=5)
 
         self.create_button(
             editor_toolbar,
             f'⧉ D',
             self.COLORS['priority_color_scale'][3],
-            command=lambda: self.change_priority(None, 'D')
+            command=lambda: self.change_priority(None, 'D'),
+            tooltip="Set priority to D"
         ).grid(row=3, sticky='ew', column=3, padx=5, pady=5)
 
         self.create_button(
             editor_toolbar,
             f'⧉ E',
             self.COLORS['priority_color_scale'][4],
-            command=lambda: self.change_priority(None, 'E')
+            command=lambda: self.change_priority(None, 'E'),
+            tooltip="Set priority to E"
         ).grid(row=3, sticky='ew', column=4, padx=5, pady=5)
 
         self.create_button(
             editor_toolbar,
             f'⧉ ☒',
             self.COLORS['important'],
-            command=lambda: self.change_priority(None, '')
+            command=lambda: self.change_priority(None, ''),
+            tooltip="Remove priority"
         ).grid(row=2, sticky='ew', column=4, padx=5, pady=5)
     
         # Add date
@@ -352,7 +366,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '↑', 
             self.COLORS['button'], 
-            command=self.move_line_up
+            command=self.move_line_up,
+            tooltip="Move line up"
         ).grid(row=2, sticky='ew', column=1, padx=5, pady=5)
 
         # Move line down
@@ -360,7 +375,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             '↓', 
             self.COLORS['button'], 
-            command=self.move_line_down
+            command=self.move_line_down,
+            tooltip="Move line down"
         ).grid(row=2, sticky='ew', column=2, padx=5, pady=5)
 
         # Delete line
@@ -368,7 +384,8 @@ class KanbanTxtViewer:
             editor_toolbar, 
             'Delete', 
             self.COLORS['button'], 
-            command=self.remove_line
+            command=self.remove_line,
+            tooltip="Remove current line"
         ).grid(row=2, sticky='ew', column=3, padx=5, pady=5)
 
         editor_toolbar.columnconfigure(0, weight=1, uniform='toolbar-item')
@@ -528,10 +545,11 @@ class KanbanTxtViewer:
         self,
         parent, 
         text="button",
-        color="black", 
-        activetextcolor="white", 
+        color="black",
+        activetextcolor="white",
         bordersize=2,
-        command=None
+        command=None,
+        tooltip=None,
     ):
         """Create a button with a border and no background"""
         button_frame = tk.Frame(
@@ -539,10 +557,10 @@ class KanbanTxtViewer:
             bg=color
         )
         button = tk.Button(
-            button_frame, 
-            text=text, 
-            relief='flat', 
-            bg=parent['bg'], 
+            button_frame,
+            text=text,
+            relief='flat',
+            bg=parent['bg'],
             fg=color,
             activebackground=color,
             activeforeground=activetextcolor,
@@ -550,7 +568,8 @@ class KanbanTxtViewer:
             font=tkFont.nametofont('main'),
             command=command)
         button.pack(padx=bordersize, pady=bordersize, fill='both')
-
+        if tooltip is not None:
+            hovertip = Hovertip(button, tooltip)
         return button_frame
 
 
@@ -959,12 +978,14 @@ class KanbanTxtViewer:
         """Switch from light and dark mode, destroy the UI and recreate it to
             apply the modification"""
         self.darkmode = not self.darkmode
-        
+
         window_geometry = self.main_window.geometry()
-        width, height, x, y = re.split("x|\+", window_geometry)
+        window_state = self.main_window.state()
+        width, height, x, y = re.split("[x+]", window_geometry)
 
         self.main_window.destroy()
         self.draw_ui(int(width), int(height), int(x), int(y))
+        self.main_window.state(window_state)
 
 
     def move_line_up(self, event=None):
@@ -1143,6 +1164,7 @@ class KanbanTxtViewer:
 
 def main(args):
     app = KanbanTxtViewer(args.file, args.darkmode)
+    app.main_window.state('zoomed')
     app.main_window.mainloop()
     
 
