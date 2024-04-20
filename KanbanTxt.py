@@ -816,9 +816,7 @@ class KanbanTxtViewer:
                 end_date = self.current_date
 
             duration = end_date.toordinal() - start_date.toordinal()
-            duration_string = "%d days: \n" % (duration)
-            for i in range(duration):
-                duration_string += "🔘"
+            duration_string = "%d days" % (duration)
 
             duration_label = tk.Label(
                 ui_card, 
