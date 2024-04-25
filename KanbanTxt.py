@@ -114,6 +114,8 @@ class KanbanTxtViewer:
         
         self.draw_ui(1000, 700, 0, 0)
 
+        self.selected_task_card = None
+
         
     def draw_ui(self, window_width, window_height, window_x, window_y):
         # Define theme
@@ -777,7 +779,8 @@ class KanbanTxtViewer:
         get_widget_name.counter = 0
 
         # Create the card frame
-        ui_card = tk.Frame(parent, bg=bg, height=200, cursor='hand2', name=get_widget_name(name))
+        ui_card_highlight = tk.Frame(parent, bd=2, bg=self.COLORS['Done-column'], height=200, name="highlightFrame"+name)
+        ui_card = tk.Frame(ui_card_highlight, bd=0, bg=bg, height=200, cursor='hand2', name=get_widget_name(name))
 
         subject_padx = 10
 
@@ -884,7 +887,8 @@ class KanbanTxtViewer:
             special_kv_entry_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
             special_kv_entry_label.bind('<Button-1>', self.highlight_task)
 
-        ui_card.pack(padx=0, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
+        ui_card.pack(padx=1, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
+        ui_card_highlight.pack(padx=0, pady=(0, 1), side="top", fill='x', expand=1, anchor=tk.NW)
         ui_card.bind('<Button-1>', self.highlight_task)
 
         return ui_card
@@ -1168,10 +1172,34 @@ class KanbanTxtViewer:
             self.text_editor.tag_remove('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
             if line_idx % 2 == 0:
                 self.text_editor.tag_add('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
-    
+
+    def highlight_selected_task_card(self, selected_widget):
+        # get first parent which starts with "highlightFrame" in its name
+        selected_highlight_frame = None
+        parent = selected_widget
+        max_depth = 5
+        for i in range(0, max_depth):
+            if parent is None:
+                break
+            if parent.winfo_name().startswith("highlightFrame"):
+                selected_highlight_frame = parent
+                break
+            parent = parent.master
+
+        if self.selected_task_card is not None:
+            try:
+                self.selected_task_card.configure(background=self.COLORS['Done-column'])
+            except:
+                self.selected_task_card = None
+
+        if selected_highlight_frame is not None:
+            selected_highlight_frame.configure(background=self.COLORS['project'])
+            self.selected_task_card = selected_highlight_frame
 
     def highlight_task(self, event):
-        searched_task_line = event.widget.winfo_name()[1:].replace("task#", "")
+        selected_widget = event.widget
+        self.highlight_selected_task_card(selected_widget)
+        searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")
         self.text_editor.mark_set('insert', searched_task_line + ".0")
         self.text_editor.see('insert')
 
