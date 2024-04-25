@@ -111,12 +111,11 @@ class KanbanTxtViewer:
         }
 
         self._after_id = -1
-        
-        self.draw_ui(1000, 700, 0, 0)
 
         self.selected_task_card = None
 
-        
+        self.draw_ui(1000, 700, 0, 0)
+
     def draw_ui(self, window_width, window_height, window_x, window_y):
         # Define theme
         dark_option = 'LIGHT_COLORS'
@@ -259,6 +258,7 @@ class KanbanTxtViewer:
         )
         self.text_editor.pack(side="top", fill="both", expand=1, padx=10, pady=10)
         self.text_editor.tag_configure('pair', background=self.COLORS['done-card-background'])
+        self.text_editor.tag_configure('current_pos', background=self.COLORS['project'])
         self.text_editor.tag_configure('insert', background='red')
 
         # EDITOR TOOLBAR
@@ -408,6 +408,16 @@ class KanbanTxtViewer:
         self.text_editor.bind('<BackSpace>', self.return_pressed)
         self.text_editor.bind('<Control-space>', self.reload_and_save)
         self.text_editor.bind('<F5>', self.reload_and_save)
+
+        # Bind navigation keys for proper tasks highlights
+        # todo: make this more efficient, no need to update on every left/right, also no need to update editor colors
+        self.text_editor.bind('<Up>', self.return_pressed)
+        self.text_editor.bind('<Down>', self.return_pressed)
+        self.text_editor.bind('<Right>', self.return_pressed)
+        self.text_editor.bind('<Left>', self.return_pressed)
+        self.text_editor.bind('<Control-End>', self.return_pressed)
+        self.text_editor.bind('<Control-Home>', self.return_pressed)
+        self.text_editor.bind('<Button-1>', self.return_pressed)
 
         # Shortkeys
         self.text_editor.bind('<Alt-Up>', self.move_line_up)
@@ -1168,9 +1178,27 @@ class KanbanTxtViewer:
     def update_editor_line_colors(self, event=None):
         nb_line = int(self.text_editor.index('end-1c').split('.')[0])
 
+        selected_line = int(self.text_editor.index(tk.INSERT).split('.')[0])
+        task_card_found = False
+        columns = self.kanban_frame.winfo_children()
+        for column in columns:
+            if task_card_found:
+                break
+            task_cards = column.winfo_children()[2].winfo_children()
+            for task_card in task_cards:
+                if task_card.winfo_name().endswith(f"task#{selected_line}"):
+                    self.highlight_selected_task_card(task_card)
+                    task_card_found = True
+                    break
+        if not task_card_found:
+            self.highlight_selected_task_card(None)
+
         for line_idx in range(nb_line):
             self.text_editor.tag_remove('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
-            if line_idx % 2 == 0:
+            self.text_editor.tag_remove('current_pos', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
+            if line_idx == selected_line:
+                self.text_editor.tag_add('current_pos', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
+            elif line_idx % 2 == 0:
                 self.text_editor.tag_add('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
 
     def highlight_selected_task_card(self, selected_widget):
@@ -1202,6 +1230,7 @@ class KanbanTxtViewer:
         searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")
         self.text_editor.mark_set('insert', searched_task_line + ".0")
         self.text_editor.see('insert')
+        self.return_pressed()
 
     def get_priority_color(self, current_priority):
         index = ord(current_priority) - ord('A')
