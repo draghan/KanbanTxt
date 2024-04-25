@@ -16,6 +16,7 @@
 # If not, see https://github.com/KrisNumber24/KanbanTxt/blob/main/LICENSE.
 
 import os
+import pathlib
 import re
 from datetime import date
 import tkinter as tk
@@ -23,6 +24,7 @@ from tkinter import filedialog
 import tkinter.font as tkFont
 import argparse
 from idlelib.tooltip import Hovertip
+import ctypes
 
 class KanbanTxtViewer:
 
@@ -127,6 +129,8 @@ class KanbanTxtViewer:
         # Create main window
         self.main_window = tk.Tk()
         self.main_window.title('KanbanTxt')
+        self.main_window.iconbitmap('icon.ico')
+        
         self.main_window['background'] = self.COLORS['main-background']
         self.main_window['relief'] = 'flat'
         self.main_window.geometry("%dx%d+%d+%d" % (window_width, window_height, window_x, window_y))
@@ -880,7 +884,7 @@ class KanbanTxtViewer:
         """Open a dialog to select a file to load"""
         self.file = filedialog.askopenfilename(
             initialdir='.', 
-            filetypes=[("todo list file", "*todo.txt")],
+            filetypes=[("todo list file", "*todo.txt"), ("txt file", "*.txt")],
             title='Choose a todo list to display')
         
         self.load_file()
@@ -895,6 +899,7 @@ class KanbanTxtViewer:
             self.text_editor.mark_set('insert', 'end')
             self.text_editor.see('insert')
             todo_cards = self.parse_todo_txt(todo_txt)
+            self.main_window.title(f"KanbanTxt - {pathlib.Path(self.file).name}")
             # self.update_ui(todo_cards)
 
 
@@ -1174,6 +1179,7 @@ def main(args):
     
 
 if __name__ == '__main__':
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('KanbanTxt')
     arg_parser = argparse.ArgumentParser(description='Display a todo.txt file as a kanban and allow to edit it')
     arg_parser.add_argument('--file', help='Path to a todo.txt file', required=False, default='', type=str)
     arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, action='store_true')
