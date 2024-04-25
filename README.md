@@ -8,10 +8,23 @@ The interface looks as follows, with full support of the todo.txt format:
 
 ![Screenshot of the KanbanTxt window](./screenshot.png)
 
+Application icon from [icons8](https://icons8.com/icon/E1n2Jj29WyVH/kanban). 
+
 ## Prerequisites
 
 - Python 3
 - Know the todo.txt format (see [here](https://github.com/todotxt/todo.txt) for a detailed description of the todo.txt format)
+
+### Linux
+
+For usage in Linux, you have to install the following dependencies for Python:
+- python3-tk
+- idle3
+
+For Debian-based distros it can be done via:
+```
+sudo apt install python3-tk idle3
+```
 
 ## Installation
 

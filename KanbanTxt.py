@@ -130,8 +130,10 @@ class KanbanTxtViewer:
         # Create main window
         self.main_window = tk.Tk()
         self.main_window.title('KanbanTxt')
-        self.main_window.iconbitmap('icon.ico')
-        
+        icon_path = pathlib.Path('icons8-kanban-64.png')
+        if icon_path.exists():
+            self.main_window.iconphoto(False, tk.PhotoImage(file=icon_path))
+
         self.main_window['background'] = self.COLORS['main-background']
         self.main_window['relief'] = 'flat'
         self.main_window.geometry("%dx%d+%d+%d" % (window_width, window_height, window_x, window_y))
@@ -1241,12 +1243,14 @@ class KanbanTxtViewer:
 
 def main(args):
     app = KanbanTxtViewer(args.file, args.darkmode)
-    app.main_window.state('zoomed')
+    if os.name == 'nt':
+        app.main_window.state('zoomed')
     app.main_window.mainloop()
     
 
 if __name__ == '__main__':
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('KanbanTxt')
+    if os.name == 'nt':
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('KanbanTxt')
     arg_parser = argparse.ArgumentParser(description='Display a todo.txt file as a kanban and allow to edit it')
     arg_parser.add_argument('--file', help='Path to a todo.txt file', required=False, default='', type=str)
     arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, action='store_true')
