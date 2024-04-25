@@ -770,15 +770,22 @@ class KanbanTxtViewer:
         special_kv_data=None,
         priority=None
     ):
+        def get_widget_name(subject_name):
+            ret_name = str(get_widget_name.counter) + subject_name
+            get_widget_name.counter += 1
+            return ret_name
+        get_widget_name.counter = 0
+
         # Create the card frame
-        ui_card = tk.Frame(parent, bg=bg, height=200)
+        ui_card = tk.Frame(parent, bg=bg, height=200, cursor='hand2', name=get_widget_name(name))
 
         subject_padx = 10
 
-        # If needed add a color border for priority marking
+        # If needed, add a color border for priority marking
         if priority is not None:
             prio_color = self.get_priority_color(priority)
-            important_border = tk.Frame(ui_card, bg=prio_color, width="3")
+            important_border = tk.Frame(ui_card, bg=prio_color, width="3", name=get_widget_name(name))
+            important_border.bind('<Button-1>', self.highlight_task)
             important_border.pack(side="left", fill='y')
             important_label = tk.Label(
                 ui_card,
@@ -786,15 +793,12 @@ class KanbanTxtViewer:
                 fg=prio_color,
                 bg=ui_card['bg'],
                 anchor=tk.W,
-                font=tkFont.Font(family='arial', size=18, weight=tkFont.BOLD)
+                font=tkFont.Font(family='arial', size=18, weight=tkFont.BOLD),
+                name=get_widget_name(name)
             )
             important_label.pack(side="left", anchor=tk.NW, padx=0, pady=(5,0))
+            important_label.bind('<Button-1>', self.highlight_task)
             subject_padx = 0
-
-        # Subject label
-        # If a name were given, used it as id
-        if len(name) == 0:
-            name= None
 
         card_label = tk.Label(
             ui_card, 
@@ -805,15 +809,15 @@ class KanbanTxtViewer:
             wraplength=200, 
             justify='left',
             font=tkFont.nametofont(font),
-            cursor='hand2',
-            name=name
+            name=get_widget_name(name)
         )
-        
+
         # Adapt elide length when width change
         card_label.bind("<Configure>", self.on_card_width_changed)
+        card_label.bind('<Button-1>', self.highlight_task)
         card_label.pack(padx=subject_padx, pady=5, fill='x', side="top", anchor=tk.W)
 
-        # If needed show the task duration
+        # If needed, show the task duration
         if start_date:
             duration = 0
             if not end_date:
@@ -830,13 +834,14 @@ class KanbanTxtViewer:
                 anchor=tk.W, 
                 justify='left',
                 font=("Arial", 8),
-                wraplength=85, 
-
+                wraplength=85,
+                name=get_widget_name(name)
             )
             if (project or context) and (len(project) > 0 or len(context) > 0):
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=0)
             else:
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=(0,10))
+            duration_label.bind('<Button-1>', self.highlight_task)
 
         # Add project and context tags if needed
         if project and len(project) > 0:
@@ -846,9 +851,11 @@ class KanbanTxtViewer:
                 text=project_string, 
                 fg=self.COLORS["project"], 
                 bg=ui_card['bg'], 
-                anchor=tk.E
+                anchor=tk.E,
+                name=get_widget_name(name)
             )
             project_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+            project_label.bind('<Button-1>', self.highlight_task)
         
         if context and len(context) > 0:
             context_string = ", ".join([c["context"] for c in context])
@@ -857,9 +864,11 @@ class KanbanTxtViewer:
                 text=context_string, 
                 fg=self.COLORS['context'], 
                 bg=ui_card['bg'], 
-                anchor=tk.E
+                anchor=tk.E,
+                name=get_widget_name(name)
             )
             context_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+            context_label.bind('<Button-1>', self.highlight_task)
 
         if special_kv_data is not None and len(special_kv_data) > 0:
             special_kv_data_string = ", ".join([f"{special_kv_data_entry['key']}:{special_kv_data_entry['val']}" for
@@ -869,13 +878,14 @@ class KanbanTxtViewer:
                 text=special_kv_data_string,
                 fg=self.COLORS['kv-data'],
                 bg=ui_card['bg'],
-                anchor=tk.E
+                anchor=tk.E,
+                name=get_widget_name(name)
             )
             special_kv_entry_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
-
-        card_label.bind('<Button-1>', self.highlight_task)
+            special_kv_entry_label.bind('<Button-1>', self.highlight_task)
 
         ui_card.pack(padx=0, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
+        ui_card.bind('<Button-1>', self.highlight_task)
 
         return ui_card
 
@@ -1161,7 +1171,7 @@ class KanbanTxtViewer:
     
 
     def highlight_task(self, event):
-        searched_task_line = event.widget.winfo_name().replace("task#", "")
+        searched_task_line = event.widget.winfo_name()[1:].replace("task#", "")
         self.text_editor.mark_set('insert', searched_task_line + ".0")
         self.text_editor.see('insert')
 
