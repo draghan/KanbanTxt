@@ -112,6 +112,7 @@ class KanbanTxtViewer:
         self.dragged_widgets = []
         self.drop_areas = []
         self.drop_areas_frame = None
+        self.drop_area_highlight = None
         self.darkmode = darkmode
 
         self.file = file
@@ -142,6 +143,7 @@ class KanbanTxtViewer:
         # Create main window
         self.main_window = tk.Tk()
         self.main_window.bind('<Button-1>', self.clear_drop_areas_frame)
+        self.main_window.bind('<Motion>', self.highlight_drop_area)
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
         if icon_path.exists():
@@ -186,6 +188,20 @@ class KanbanTxtViewer:
         self.clear_drop_areas_frame()
         self.dragged_widgets.append(dragged_widget_name)
         self.main_window.after(50, self.on_drag, event) # a little delay to give the UI time to refresh highlighted task card
+
+    def highlight_drop_area(self, event):
+        if self.drop_areas_frame is None:
+            return
+        if len(self.drop_areas) == 0:
+            return
+        drop_canvas = self.drop_areas_frame.winfo_children()[0]
+        if self.drop_area_highlight is not None:
+            drop_canvas.delete(self.drop_area_highlight)
+            self.drop_area_highlight = None
+
+        drop_area = self.get_drop_area_from_cursor()
+        if drop_area is not None:
+            self.drop_area_highlight = drop_canvas.create_rectangle(drop_area['x1'], drop_area['y1'], drop_area['x2'], drop_area['y2'], fill="", outline='red', width=3)
 
     def on_drag(self, event):
         event.widget.config(cursor="fleur")
@@ -284,30 +300,39 @@ class KanbanTxtViewer:
             canvas.create_text(drop_area['x1'] + drop_area_width / 2, drop_area['y1'] + drop_area_height / 2, text=drop_area['name'], fill='black')
         canvas.create_text(canvas_width / 2, drop_areas_title_text_pos_y, text=drop_areas_title, fill='black')
 
+    def is_cursor_in_box(self, box_x1, box_y1, box_x2, box_y2):
+        cursor_pos_x, cursor_pos_y = self.get_cursor_pos()
+        return box_x1 < cursor_pos_x < box_x2 and box_y1 < cursor_pos_y < box_y2
+
+    def get_drop_area_from_cursor(self):
+        if self.drop_areas_frame is not None and len(self.drop_areas) > 0:
+            drop_canvas = self.drop_areas_frame.winfo_children()[0]
+            for i in range(len(self.drop_areas)):
+                canvas_offset_x = drop_canvas.winfo_rootx()
+                canvas_offset_y = drop_canvas.winfo_rooty()
+
+                drop_top_left_x = self.drop_areas[i]['x1'] + canvas_offset_x
+                drop_top_left_y = self.drop_areas[i]['y1'] + canvas_offset_y
+                drop_bottom_right_x = self.drop_areas[i]['x2'] + canvas_offset_x
+                drop_bottom_right_y = self.drop_areas[i]['y2'] + canvas_offset_y
+                if self.is_cursor_in_box(drop_top_left_x, drop_top_left_y, drop_bottom_right_x, drop_bottom_right_y):
+                    return self.drop_areas[i]
+        return None
+
     def on_drop(self, event):
         dragged_widget_name = event.widget.winfo_name()
         if dragged_widget_name not in self.dragged_widgets:
             return
-        cursor_pos_x, cursor_pos_y = self.get_cursor_pos()
+
         self.dragged_widgets.remove(dragged_widget_name)
         event.widget.config(cursor="hand2")
         if self.drop_areas_frame is None:
             return
-        drop_canvas = self.drop_areas_frame.winfo_children()[0]
-        for i in range(len(self.drop_areas)):
-            drop_top_left_x = self.drop_areas[i]['x1']
-            drop_top_left_y = self.drop_areas[i]['y1']
-            drop_bottom_right_x = self.drop_areas[i]['x2']
-            drop_bottom_right_y = self.drop_areas[i]['y2']
-            canvas_offset_x = drop_canvas.winfo_rootx()
-            canvas_offset_y = drop_canvas.winfo_rooty()
-            drop_top_left_x += canvas_offset_x
-            drop_top_left_y += canvas_offset_y
-            drop_bottom_right_x += canvas_offset_x
-            drop_bottom_right_y += canvas_offset_y
-            if drop_top_left_x < cursor_pos_x < drop_bottom_right_x and drop_top_left_y < cursor_pos_y < drop_bottom_right_y:
-                self.drop_areas[i]['functor']()
-                break
+
+        drop_area = self.get_drop_area_from_cursor()
+        if drop_area is not None:
+            drop_area['functor']()
+
         self.drop_areas.clear()
         self.clear_drop_areas_frame()
 
