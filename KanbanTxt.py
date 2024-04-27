@@ -97,6 +97,9 @@ class KanbanTxtViewer:
     KANBAN_VAL_VALIDATION = "validation"
 
     def __init__(self, file='', darkmode=False) -> None:
+        self.dragged_widgets = []
+        self.drop_areas = []
+        self.drop_areas_frame = None
         self.darkmode = darkmode
 
         self.file = file
@@ -154,6 +157,99 @@ class KanbanTxtViewer:
         if os.path.isfile(self.file):
             self.load_file()
 
+    def on_drag_init(self, event):
+        dragged_widget_name = event.widget.winfo_name()
+        if dragged_widget_name in self.dragged_widgets:
+            return
+        if self.drop_areas_frame is not None:
+            self.drop_areas_frame.destroy()
+            self.drop_areas_frame = None
+        self.dragged_widgets.append(dragged_widget_name)
+        self.main_window.after(10, self.on_drag, event) # a little delay to give the UI time to refresh highlighted task card
+
+    def on_drag(self, event):
+        event.widget.config(cursor="fleur")
+
+        cursor_x_pos = self.main_window.winfo_pointerx()
+
+        # properties of a single drop area
+        drop_area_width = 100
+        drop_area_height = 100
+        drop_area_spacing = 25
+
+        # properties of the parent window for drop areas
+        # should appear above currently dragged task card, and it should not protrude beyond
+        # the border of the main window
+        drop_areas_frame_border = 4
+        drop_areas_title_text_pos_y = 10
+        task_card_frame_widget = self.get_task_card_frame_widget(event.widget)
+        drop_areas_frame_width = (drop_area_width + drop_area_spacing) * (len(self.ui_columns.keys()) + 1)
+        drop_areas_frame_pos_x = cursor_x_pos - int(drop_areas_frame_width / 2)
+        drop_areas_frame_pos_y = task_card_frame_widget.winfo_rooty() - drop_area_height - drop_area_spacing
+
+        main_window_geometry = [int(a) for a in re.split('[+x]', self.main_window.geometry())]
+        main_window_end_pos_x = main_window_geometry[0] + main_window_geometry[2]
+        drop_areas_frame_pos_x_offset = drop_areas_frame_pos_x + drop_areas_frame_width - main_window_end_pos_x
+        if drop_areas_frame_pos_x_offset >= 0:
+            drop_areas_frame_pos_x -= drop_areas_frame_pos_x_offset + drop_area_spacing
+
+        # use a Toplevel window, overridedirect and "-topmost" attribute to trick tkinter into
+        # displaying this window on top in a desired position
+        self.drop_areas_frame = tk.Toplevel(self.main_window, padx=0, pady=0, background=self.COLORS['button'], borderwidth=drop_areas_frame_border)
+        self.drop_areas_frame.geometry(f"{drop_areas_frame_width}x{drop_area_height + drop_area_spacing + drop_areas_title_text_pos_y}+{drop_areas_frame_pos_x}+{drop_areas_frame_pos_y}")
+        self.drop_areas_frame.overrideredirect(True)
+        self.drop_areas_frame.wm_attributes("-topmost", True)
+
+        # canvas to paint drop areas onto
+        canvas_width = (drop_area_width + drop_area_spacing) * (len(self.ui_columns.keys())) + drop_area_spacing
+        canvas = tk.Canvas(self.drop_areas_frame,
+                           borderwidth=0,
+                           bg="white",
+                           width=canvas_width)
+        canvas.pack()
+        drop_areas_pos_x = drop_area_spacing
+        drop_areas_frame_pos_y = 2 * drop_areas_title_text_pos_y
+
+        self.drop_areas.clear()
+        for column_name in self.ui_columns.keys():
+            self.drop_areas.append(canvas.create_rectangle(drop_areas_pos_x, drop_areas_frame_pos_y, drop_areas_pos_x + drop_area_width, drop_areas_frame_pos_y + drop_area_height, fill=self.COLORS[column_name]))
+            canvas.create_text(drop_areas_pos_x + drop_area_width / 2, drop_areas_frame_pos_y + drop_area_height / 2, text=column_name, fill='black')
+            drop_areas_pos_x += drop_area_spacing + drop_area_width
+
+        canvas.create_text(canvas_width / 2, drop_areas_title_text_pos_y, text="Move this task to:", fill='black')
+
+    def on_drop(self, event):
+        dragged_widget_name = event.widget.winfo_name()
+        if dragged_widget_name not in self.dragged_widgets:
+            return
+        cursor_pos_x = self.main_window.winfo_pointerx()
+        cursor_pos_y = self.main_window.winfo_pointery()
+        self.dragged_widgets.remove(dragged_widget_name)
+        event.widget.config(cursor="hand2")
+        if self.drop_areas_frame is None:
+            return
+        drop_canvas = self.drop_areas_frame.winfo_children()[0]
+        move_functors = [
+            self.move_to_todo,
+            self.move_to_in_progress,
+            self.move_to_validation,
+            self.move_to_done,
+        ]
+        for i in range(len(self.drop_areas)):
+            (drop_top_left_x, drop_top_left_y,
+             drop_bottom_right_x, drop_bottom_right_y) = drop_canvas.coords(self.drop_areas[i])
+            canvas_offset_x = drop_canvas.winfo_rootx()
+            canvas_offset_y = drop_canvas.winfo_rooty()
+            drop_top_left_x += canvas_offset_x
+            drop_top_left_y += canvas_offset_y
+            drop_bottom_right_x += canvas_offset_x
+            drop_bottom_right_y += canvas_offset_y
+            if drop_top_left_x < cursor_pos_x < drop_bottom_right_x and drop_top_left_y < cursor_pos_y < drop_bottom_right_y:
+                move_functors[i]()
+                break
+        self.drop_areas.clear()
+        self.drop_areas_frame.destroy()
+        self.drop_areas_frame = None
 
     def draw_editor_panel(self):
         # EDITION FRAME
@@ -784,6 +880,11 @@ class KanbanTxtViewer:
         special_kv_data=None,
         priority=None
     ):
+        def bind_highlight_and_drag_n_drop(widget):
+            widget.bind('<Button-1>', self.highlight_task)
+            widget.bind('<B1-Motion>', self.on_drag_init)
+            widget.bind('<ButtonRelease>', self.on_drop)
+
         def get_widget_name(subject_name):
             ret_name = str(get_widget_name.counter) + subject_name
             get_widget_name.counter += 1
@@ -800,7 +901,7 @@ class KanbanTxtViewer:
         if priority is not None:
             prio_color = self.get_priority_color(priority)
             important_border = tk.Frame(ui_card, bg=prio_color, width="3", name=get_widget_name(name))
-            important_border.bind('<Button-1>', self.highlight_task)
+            bind_highlight_and_drag_n_drop(important_border)
             important_border.pack(side="left", fill='y')
             important_label = tk.Label(
                 ui_card,
@@ -812,7 +913,7 @@ class KanbanTxtViewer:
                 name=get_widget_name(name)
             )
             important_label.pack(side="left", anchor=tk.NW, padx=0, pady=(5,0))
-            important_label.bind('<Button-1>', self.highlight_task)
+            bind_highlight_and_drag_n_drop(important_label)
             subject_padx = 0
 
         card_label = tk.Label(
@@ -829,7 +930,7 @@ class KanbanTxtViewer:
 
         # Adapt elide length when width change
         card_label.bind("<Configure>", self.on_card_width_changed)
-        card_label.bind('<Button-1>', self.highlight_task)
+        bind_highlight_and_drag_n_drop(card_label)
         card_label.pack(padx=subject_padx, pady=5, fill='x', side="top", anchor=tk.W)
 
         # If needed, show the task duration
@@ -856,7 +957,7 @@ class KanbanTxtViewer:
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=0)
             else:
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=(0,10))
-            duration_label.bind('<Button-1>', self.highlight_task)
+            bind_highlight_and_drag_n_drop(duration_label)
 
         # Add project and context tags if needed
         if project and len(project) > 0:
@@ -870,8 +971,8 @@ class KanbanTxtViewer:
                 name=get_widget_name(name)
             )
             project_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
-            project_label.bind('<Button-1>', self.highlight_task)
-        
+            bind_highlight_and_drag_n_drop(project_label)
+
         if context and len(context) > 0:
             context_string = ", ".join([c["context"] for c in context])
             context_label = tk.Label(
@@ -883,7 +984,7 @@ class KanbanTxtViewer:
                 name=get_widget_name(name)
             )
             context_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
-            context_label.bind('<Button-1>', self.highlight_task)
+            bind_highlight_and_drag_n_drop(context_label)
 
         if special_kv_data is not None and len(special_kv_data) > 0:
             special_kv_data_string = ", ".join([f"{special_kv_data_entry['key']}:{special_kv_data_entry['val']}" for
@@ -897,11 +998,11 @@ class KanbanTxtViewer:
                 name=get_widget_name(name)
             )
             special_kv_entry_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
-            special_kv_entry_label.bind('<Button-1>', self.highlight_task)
+            bind_highlight_and_drag_n_drop(special_kv_entry_label)
 
         ui_card.pack(padx=1, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
         ui_card_highlight.pack(padx=0, pady=(0, 1), side="top", fill='x', expand=1, anchor=tk.NW)
-        ui_card.bind('<Button-1>', self.highlight_task)
+        bind_highlight_and_drag_n_drop(ui_card)
 
         return ui_card
 
@@ -1203,18 +1304,23 @@ class KanbanTxtViewer:
             elif line_idx % 2 == 0:
                 self.text_editor.tag_add('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
 
-    def highlight_selected_task_card(self, selected_widget):
+    def get_task_card_frame_widget(self, any_subwidget):
         # get first parent which starts with "highlightFrame" in its name
-        selected_highlight_frame = None
-        parent = selected_widget
+        selected_task_card_frame = None
+        parent = any_subwidget
         max_depth = 5
         for i in range(0, max_depth):
             if parent is None:
                 break
             if parent.winfo_name().startswith("highlightFrame"):
-                selected_highlight_frame = parent
+                selected_task_card_frame = parent
                 break
             parent = parent.master
+        return selected_task_card_frame
+
+    def highlight_selected_task_card(self, selected_widget):
+        # get first parent which starts with "highlightFrame" in its name
+        selected_highlight_frame = self.get_task_card_frame_widget(selected_widget)
 
         if self.selected_task_card is not None:
             try:
@@ -1227,6 +1333,9 @@ class KanbanTxtViewer:
             self.selected_task_card = selected_highlight_frame
 
     def highlight_task(self, event):
+        if self.drop_areas_frame is not None:
+            self.drop_areas_frame.destroy()
+            self.drop_areas_frame = None
         selected_widget = event.widget
         self.highlight_selected_task_card(selected_widget)
         searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")

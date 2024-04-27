@@ -63,6 +63,8 @@ I used the todo.txt special key-val tags to define in which column each task sho
 - `x ` prefix: This task is finished and goes to the *Done* column.
 - A task without a `knbn` key tag and without the `x ` prefix, goes to the *To Do* column, waiting to be treated.
 
+You can drag any task card from its current column and drop it to the desired state.
+
 You can also use *ctrl + 1-5* to move the task under the text editor cursor to the corresponding column.
 1. To Do
 2. Change priority
