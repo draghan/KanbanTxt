@@ -349,7 +349,7 @@ class KanbanTxtViewer:
 
         load_button = self.create_button(
             editor_header,
-            text="📂",
+            text="🗁",
             bordersize=2,
             color=self.COLORS['button'],
             activetextcolor=self.COLORS['main-background'],
@@ -764,7 +764,7 @@ class KanbanTxtViewer:
             activebackground=color,
             activeforeground=activetextcolor,
             borderwidth=0,
-            font=('main', 12),
+            font=('Free Serif', 12),
             command=command)
         button.pack(padx=bordersize, pady=bordersize, fill='both')
         if tooltip is not None:
