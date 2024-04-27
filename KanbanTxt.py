@@ -27,17 +27,28 @@ from idlelib.tooltip import Hovertip
 import ctypes
 
 class KanbanTxtViewer:
+    COLUMN_NAME_TODO = "To Do"
+    COLUMN_NAME_IN_PROGRESS = "In progress"
+    COLUMN_NAME_VALIDATION = "Validation"
+    COLUMN_NAME_DONE = "Done"
+
+    COLUMNS_NAMES = [
+        COLUMN_NAME_TODO,
+        COLUMN_NAME_IN_PROGRESS,
+        COLUMN_NAME_VALIDATION,
+        COLUMN_NAME_DONE
+    ]
 
     THEMES = {
-        'LIGHT_COLORS' : {
-            "To Do": '#f27272',
-            "In progress": '#00b6e4',
-            "Validation": '#22b57f',
-            "Done": "#8BC34A",
-            "To Do-column": '#daecf1',
-            "In progress-column": '#daecf1',
-            "Validation-column": '#daecf1',
-            "Done-column": "#daecf1",
+        'LIGHT_COLORS': {
+            COLUMN_NAME_TODO: '#f27272',
+            COLUMN_NAME_IN_PROGRESS: '#00b6e4',
+            COLUMN_NAME_VALIDATION: '#22b57f',
+            COLUMN_NAME_DONE: "#8BC34A",
+            f"{COLUMN_NAME_TODO}-column": '#daecf1',
+            f"{COLUMN_NAME_IN_PROGRESS}-column": '#daecf1',
+            f"{COLUMN_NAME_VALIDATION}-column": '#daecf1',
+            f"{COLUMN_NAME_DONE}-column": "#daecf1",
             "important": "#a7083b",
             "project": '#00b6e4',
             'context': '#1c9c6d',
@@ -58,15 +69,15 @@ class KanbanTxtViewer:
             ]
         },
 
-        'DARK_COLORS' : {
-            "To Do": '#f27272',
-            "In progress": '#00b6e4',
-            "Validation": '#22b57f',
-            "Done": "#8BC34A",
-            "To Do-column": '#15151f',
-            "In progress-column": '#15151f',
-            "Validation-column": '#15151f',
-            "Done-column": "#15151f",
+        'DARK_COLORS': {
+            COLUMN_NAME_TODO: '#f27272',
+            COLUMN_NAME_IN_PROGRESS: '#00b6e4',
+            COLUMN_NAME_VALIDATION: '#22b57f',
+            COLUMN_NAME_DONE: "#8BC34A",
+            f"{COLUMN_NAME_TODO}-column": '#15151f',
+            f"{COLUMN_NAME_IN_PROGRESS}-column": '#15151f',
+            f"{COLUMN_NAME_VALIDATION}-column": '#15151f',
+            f"{COLUMN_NAME_DONE}-column": "#15151f",
             "important": "#e12360",
             "project": '#00b6e4',
             'context': '#1c9c6d',
@@ -97,6 +108,7 @@ class KanbanTxtViewer:
     KANBAN_VAL_VALIDATION = "validation"
 
     def __init__(self, file='', darkmode=False) -> None:
+        self.drag_begin_cursor_pos = (0, 0)
         self.dragged_widgets = []
         self.drop_areas = []
         self.drop_areas_frame = None
@@ -105,13 +117,10 @@ class KanbanTxtViewer:
         self.file = file
 
         self.current_date = date.today()
-        
-        self.ui_columns = {
-            "To Do": [],
-            "In progress": [],
-            "Validation": [],
-            "Done": []
-        }
+
+        self.ui_columns = {}
+        for col in self.COLUMNS_NAMES:
+            self.ui_columns[col] = []
 
         self._after_id = -1
 
@@ -132,6 +141,7 @@ class KanbanTxtViewer:
 
         # Create main window
         self.main_window = tk.Tk()
+        self.main_window.bind('<Button-1>', self.clear_drop_areas_frame)
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
         if icon_path.exists():
@@ -157,20 +167,28 @@ class KanbanTxtViewer:
         if os.path.isfile(self.file):
             self.load_file()
 
+    def get_cursor_pos(self):
+        return self.main_window.winfo_pointerx(), self.main_window.winfo_pointery()
+
+    def clear_drop_areas_frame(self, event=None):
+        if self.drop_areas_frame is not None:
+            self.drop_areas_frame.destroy()
+            self.drop_areas_frame = None
+
+    def on_click(self, event):
+        self.drag_begin_cursor_pos = self.get_cursor_pos()
+        self.highlight_task(event)
+
     def on_drag_init(self, event):
         dragged_widget_name = event.widget.winfo_name()
         if dragged_widget_name in self.dragged_widgets:
             return
-        if self.drop_areas_frame is not None:
-            self.drop_areas_frame.destroy()
-            self.drop_areas_frame = None
+        self.clear_drop_areas_frame()
         self.dragged_widgets.append(dragged_widget_name)
-        self.main_window.after(10, self.on_drag, event) # a little delay to give the UI time to refresh highlighted task card
+        self.main_window.after(50, self.on_drag, event) # a little delay to give the UI time to refresh highlighted task card
 
     def on_drag(self, event):
         event.widget.config(cursor="fleur")
-
-        cursor_x_pos = self.main_window.winfo_pointerx()
 
         # properties of a single drop area
         drop_area_width = 100
@@ -182,8 +200,62 @@ class KanbanTxtViewer:
         # the border of the main window
         drop_areas_frame_border = 4
         drop_areas_title_text_pos_y = 10
+        drop_areas_pos_x = drop_area_spacing
+        drop_areas_pos_y = 2 * drop_areas_title_text_pos_y
+
+        self.drop_areas.clear()
+        # determine whether user dragged vertically (to change priority) or horizontally (to change column)
+        cursor_x_pos, cursor_y_pos = self.get_cursor_pos()
+        distance_x = abs(cursor_x_pos - self.drag_begin_cursor_pos[0])
+        distance_y = abs(cursor_y_pos - self.drag_begin_cursor_pos[1])
+        if distance_x >= distance_y:
+            drop_areas_title = "Move this task to:"
+            move_functors = {
+                self.COLUMN_NAME_TODO: self.move_to_todo,
+                self.COLUMN_NAME_IN_PROGRESS: self.move_to_in_progress,
+                self.COLUMN_NAME_VALIDATION: self.move_to_validation,
+                self.COLUMN_NAME_DONE: self.move_to_done,
+            }
+            for column_name in self.COLUMNS_NAMES:
+                self.drop_areas.append({
+                    'name': column_name,
+                    'color': self.COLORS[column_name],
+                    'functor': move_functors[column_name],
+                    'x1': drop_areas_pos_x,
+                    'y1': drop_areas_pos_y,
+                    'x2': drop_areas_pos_x + drop_area_width,
+                    'y2': drop_areas_pos_y + drop_area_height
+                })
+                drop_areas_pos_x += drop_area_spacing + drop_area_width
+        else:
+            drop_areas_title = "Change priority to:"
+            priority_functors = {
+                "A": self.change_priority_to_A,
+                "B": self.change_priority_to_B,
+                "C": self.change_priority_to_C,
+                "D": self.change_priority_to_D,
+                "E": self.change_priority_to_E,
+                "(none)": lambda: self.change_priority(None, "")
+            }
+            i = 0
+            for priority in priority_functors.keys():
+                color = 'white'
+                if i < len(self.COLORS['priority_color_scale']):
+                    color = self.COLORS['priority_color_scale'][i]
+                i += 1
+                self.drop_areas.append({
+                    'name': priority,
+                    'color': color,
+                    'functor': priority_functors[priority],
+                    'x1': drop_areas_pos_x,
+                    'y1': drop_areas_pos_y,
+                    'x2': drop_areas_pos_x + drop_area_width,
+                    'y2': drop_areas_pos_y + drop_area_height
+                })
+                drop_areas_pos_x += drop_area_spacing + drop_area_width
+
         task_card_frame_widget = self.get_task_card_frame_widget(event.widget)
-        drop_areas_frame_width = (drop_area_width + drop_area_spacing) * (len(self.ui_columns.keys()) + 1)
+        drop_areas_frame_width = (drop_area_width + drop_area_spacing) * (len(self.drop_areas) + 1)
         drop_areas_frame_pos_x = cursor_x_pos - int(drop_areas_frame_width / 2)
         drop_areas_frame_pos_y = task_card_frame_widget.winfo_rooty() - drop_area_height - drop_area_spacing
 
@@ -201,43 +273,32 @@ class KanbanTxtViewer:
         self.drop_areas_frame.wm_attributes("-topmost", True)
 
         # canvas to paint drop areas onto
-        canvas_width = (drop_area_width + drop_area_spacing) * (len(self.ui_columns.keys())) + drop_area_spacing
+        canvas_width = (drop_area_width + drop_area_spacing) * (len(self.drop_areas)) + drop_area_spacing
         canvas = tk.Canvas(self.drop_areas_frame,
                            borderwidth=0,
                            bg="white",
                            width=canvas_width)
         canvas.pack()
-        drop_areas_pos_x = drop_area_spacing
-        drop_areas_frame_pos_y = 2 * drop_areas_title_text_pos_y
-
-        self.drop_areas.clear()
-        for column_name in self.ui_columns.keys():
-            self.drop_areas.append(canvas.create_rectangle(drop_areas_pos_x, drop_areas_frame_pos_y, drop_areas_pos_x + drop_area_width, drop_areas_frame_pos_y + drop_area_height, fill=self.COLORS[column_name]))
-            canvas.create_text(drop_areas_pos_x + drop_area_width / 2, drop_areas_frame_pos_y + drop_area_height / 2, text=column_name, fill='black')
-            drop_areas_pos_x += drop_area_spacing + drop_area_width
-
-        canvas.create_text(canvas_width / 2, drop_areas_title_text_pos_y, text="Move this task to:", fill='black')
+        for drop_area in self.drop_areas:
+            canvas.create_rectangle(drop_area['x1'], drop_area['y1'], drop_area['x2'], drop_area['y2'], fill=drop_area['color'])
+            canvas.create_text(drop_area['x1'] + drop_area_width / 2, drop_area['y1'] + drop_area_height / 2, text=drop_area['name'], fill='black')
+        canvas.create_text(canvas_width / 2, drop_areas_title_text_pos_y, text=drop_areas_title, fill='black')
 
     def on_drop(self, event):
         dragged_widget_name = event.widget.winfo_name()
         if dragged_widget_name not in self.dragged_widgets:
             return
-        cursor_pos_x = self.main_window.winfo_pointerx()
-        cursor_pos_y = self.main_window.winfo_pointery()
+        cursor_pos_x, cursor_pos_y = self.get_cursor_pos()
         self.dragged_widgets.remove(dragged_widget_name)
         event.widget.config(cursor="hand2")
         if self.drop_areas_frame is None:
             return
         drop_canvas = self.drop_areas_frame.winfo_children()[0]
-        move_functors = [
-            self.move_to_todo,
-            self.move_to_in_progress,
-            self.move_to_validation,
-            self.move_to_done,
-        ]
         for i in range(len(self.drop_areas)):
-            (drop_top_left_x, drop_top_left_y,
-             drop_bottom_right_x, drop_bottom_right_y) = drop_canvas.coords(self.drop_areas[i])
+            drop_top_left_x = self.drop_areas[i]['x1']
+            drop_top_left_y = self.drop_areas[i]['y1']
+            drop_bottom_right_x = self.drop_areas[i]['x2']
+            drop_bottom_right_y = self.drop_areas[i]['y2']
             canvas_offset_x = drop_canvas.winfo_rootx()
             canvas_offset_y = drop_canvas.winfo_rooty()
             drop_top_left_x += canvas_offset_x
@@ -245,11 +306,10 @@ class KanbanTxtViewer:
             drop_bottom_right_x += canvas_offset_x
             drop_bottom_right_y += canvas_offset_y
             if drop_top_left_x < cursor_pos_x < drop_bottom_right_x and drop_top_left_y < cursor_pos_y < drop_bottom_right_y:
-                move_functors[i]()
+                self.drop_areas[i]['functor']()
                 break
         self.drop_areas.clear()
-        self.drop_areas_frame.destroy()
-        self.drop_areas_frame = None
+        self.clear_drop_areas_frame()
 
     def draw_editor_panel(self):
         # EDITION FRAME
@@ -321,8 +381,8 @@ class KanbanTxtViewer:
         # MEMO
         cheat_sheet = tk.Label(edition_frame, text='------ Memo ------\n'
             'x \t\t—  done\n'
-            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  in progress\n'
-            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  validation\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  {self.COLUMN_NAME_IN_PROGRESS}\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_NAME_VALIDATION}\n'
             'Ctrl + s \t\t—  refresh and save\n'
             'Alt + ↑ / ↓ \t—  move line up / down\n',
             bg=self.COLORS['editor-background'],
@@ -367,9 +427,9 @@ class KanbanTxtViewer:
         self.create_button(
             editor_toolbar, 
             '✅→⚫', 
-            self.COLORS['To Do'], 
+            self.COLORS[self.COLUMN_NAME_TODO], 
             command=self.move_to_todo,
-            tooltip="Move task to To Do"
+            tooltip=f"Move task to {self.COLUMN_NAME_TODO}"
         ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
 
         # Cycle through priorities
@@ -383,29 +443,29 @@ class KanbanTxtViewer:
 
         # Move to In progress
         self.create_button(
-            editor_toolbar, 
-            '✅→⚫', 
-            self.COLORS['In progress'], 
+            editor_toolbar,
+            '✅→⚫',
+            self.COLORS[self.COLUMN_NAME_IN_PROGRESS],
             command=self.move_to_in_progress,
-            tooltip="Move task to In progress"
+            tooltip=f"Move task to {self.COLUMN_NAME_IN_PROGRESS}"
         ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
 
         # Move to Validation
         self.create_button(
-            editor_toolbar, 
-            '✅→⚫', 
-            self.COLORS['Validation'], 
+            editor_toolbar,
+            '✅→⚫',
+            self.COLORS[self.COLUMN_NAME_VALIDATION],
             command=self.move_to_validation,
-            tooltip="Move task to Validation"
+            tooltip=f"Move task to {self.COLUMN_NAME_VALIDATION}"
         ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
 
         # Move to Done
         self.create_button(
-            editor_toolbar, 
-            '✅→⚫', 
-            self.COLORS['Done'], 
+            editor_toolbar,
+            '✅→⚫',
+            self.COLORS[self.COLUMN_NAME_DONE],
             command=self.move_to_done,
-            tooltip="Move task to Done"
+            tooltip=f"Move task to {self.COLUMN_NAME_DONE}"
         ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
 
         # Set prios A..E
@@ -413,7 +473,7 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ A',
             self.COLORS['priority_color_scale'][0],
-            command=lambda: self.change_priority(None, 'A'),
+            command=self.change_priority_to_A,
             tooltip="Set priority to A"
         ).grid(row=3, sticky='ew', column=0, padx=5, pady=5)
 
@@ -421,7 +481,7 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ B',
             self.COLORS['priority_color_scale'][1],
-            command=lambda: self.change_priority(None, 'B'),
+            command=self.change_priority_to_B,
             tooltip="Set priority to B"
         ).grid(row=3, sticky='ew', column=1, padx=5, pady=5)
 
@@ -429,7 +489,7 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ C',
             self.COLORS['priority_color_scale'][2],
-            command=lambda: self.change_priority(None, 'C'),
+            command=self.change_priority_to_C,
             tooltip="Set priority to C"
         ).grid(row=3, sticky='ew', column=2, padx=5, pady=5)
 
@@ -437,7 +497,7 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ D',
             self.COLORS['priority_color_scale'][3],
-            command=lambda: self.change_priority(None, 'D'),
+            command=self.change_priority_to_D,
             tooltip="Set priority to D"
         ).grid(row=3, sticky='ew', column=3, padx=5, pady=5)
 
@@ -445,7 +505,7 @@ class KanbanTxtViewer:
             editor_toolbar,
             f'⧉ E',
             self.COLORS['priority_color_scale'][4],
-            command=lambda: self.change_priority(None, 'E'),
+            command=self.change_priority_to_E,
             tooltip="Set priority to E"
         ).grid(row=3, sticky='ew', column=4, padx=5, pady=5)
 
@@ -699,21 +759,15 @@ class KanbanTxtViewer:
 
     def parse_todo_txt(self, p_todo_txt):
         """Parse a todo txt content and return data as a dictionary"""
-        tasks = {
-            "To Do": [],
-            "In progress": [],
-            "Validation": [],
-            "Done": []
-        }
+        tasks = {}
+        for col in self.COLUMNS_NAMES:
+            tasks[col] = []
 
         # Erase the columns content
         for ui_column_name, ui_column in self.ui_columns.items():
             ui_column.content.pack_forget()
             for widget in ui_column.content.winfo_children():
                 widget.destroy()
-
-        important_frame = tk.Frame(self.ui_columns['To Do'].content, bg=ui_column.content['bg'])    
-        important_frame.pack(side='top', fill='x')
 
         todo_list = p_todo_txt.split("\n")
 
@@ -748,11 +802,11 @@ class KanbanTxtViewer:
                 subject = re.sub(project_r, "", subject)
                 subject = re.sub(context_r, "", subject)
 
-                category = "To Do"
+                category = self.COLUMN_NAME_TODO
 
                 category_map = {
-                    self.KANBAN_VAL_IN_PROGRESS: 'In progress',
-                    self.KANBAN_VAL_VALIDATION: 'Validation',
+                    self.KANBAN_VAL_IN_PROGRESS: self.COLUMN_NAME_IN_PROGRESS,
+                    self.KANBAN_VAL_VALIDATION: self.COLUMN_NAME_VALIDATION,
                 }
 
                 for i in range(0, len(special_kv_data)):
@@ -764,7 +818,7 @@ class KanbanTxtViewer:
                             break
 
                 if task.get("isDone"):
-                    category = "Done"
+                    category = self.COLUMN_NAME_DONE
 
                 priority = None
                 if task.get("priority"):
@@ -785,7 +839,7 @@ class KanbanTxtViewer:
 
                 card_bg = self.COLORS['card-background']
                 font = 'main'
-                if category == 'Done':
+                if category == self.COLUMN_NAME_DONE:
                     card_bg = self.COLORS['done-card-background']
                     font = 'done-task'
 
@@ -824,30 +878,25 @@ class KanbanTxtViewer:
             )
 
         # Compute proportion for each column tasks and update progress bars
-        tasks_number = {
-            'To Do': len(tasks["To Do"]),
-            'In progress': len(tasks['In progress']),
-            'Validation': len(tasks['Validation']),
-            'Done': len(tasks['Done'])
-        }
+        tasks_number = {}
+        for col in self.COLUMNS_NAMES:
+            tasks_number[col] = len(tasks[col])
+
         total_tasks = 0
 
         for key, number in tasks_number.items():
             total_tasks += number
 
         if total_tasks > 0:
-            percentages = {
-                'To Do': tasks_number['To Do'] / total_tasks,
-                'In progress': tasks_number['In progress'] / total_tasks,
-                'Validation': tasks_number['Validation'] / total_tasks,
-                'Done': tasks_number['Done'] / total_tasks
-            }
+            percentages = {}
+            for col in self.COLUMNS_NAMES:
+                percentages[col] = tasks_number[col] / total_tasks
 
             bar_x = 0
 
             for key, progress_bar in self.progress_bars.items():
                 progress_bar['bar'].place(relx=bar_x, relwidth=percentages[key], relheight=1)
-                label_text = key + ': ' + str(tasks_number[key])
+                label_text = f"{tasks_number[key]}"
                 progress_bar['label'].config(text=label_text)
                 bar_x += percentages[key]
 
@@ -875,13 +924,13 @@ class KanbanTxtViewer:
         context=None, 
         start_date=None,
         end_date=None,
-        state='To Do',
+        state=COLUMN_NAME_TODO,
         name="",
         special_kv_data=None,
         priority=None
     ):
         def bind_highlight_and_drag_n_drop(widget):
-            widget.bind('<Button-1>', self.highlight_task)
+            widget.bind('<Button-1>', self.on_click)
             widget.bind('<B1-Motion>', self.on_drag_init)
             widget.bind('<ButtonRelease>', self.on_drop)
 
@@ -892,7 +941,7 @@ class KanbanTxtViewer:
         get_widget_name.counter = 0
 
         # Create the card frame
-        ui_card_highlight = tk.Frame(parent, bd=2, bg=self.COLORS['Done-column'], height=200, name="highlightFrame"+name)
+        ui_card_highlight = tk.Frame(parent, bd=2, bg=self.COLORS[f'{self.COLUMN_NAME_DONE}-column'], height=200, name="highlightFrame"+name)
         ui_card = tk.Frame(ui_card_highlight, bd=0, bg=bg, height=200, cursor='hand2', name=get_widget_name(name))
 
         subject_padx = 10
@@ -1224,6 +1273,20 @@ class KanbanTxtViewer:
     def move_to_todo(self, event=None):
         self.set_editor_line_state('')
 
+    def change_priority_to_A(self):
+        self.change_priority(None, "A")
+
+    def change_priority_to_B(self):
+        self.change_priority(None, "B")
+
+    def change_priority_to_C(self):
+        self.change_priority(None, "C")
+    def change_priority_to_D(self):
+        self.change_priority(None, "D")
+
+    def change_priority_to_E(self):
+        self.change_priority(None, "E")
+
     def change_priority(self, event=None, new_priority=None):
         self.set_editor_line_priority(new_priority)
 
@@ -1324,7 +1387,7 @@ class KanbanTxtViewer:
 
         if self.selected_task_card is not None:
             try:
-                self.selected_task_card.configure(background=self.COLORS['Done-column'])
+                self.selected_task_card.configure(background=self.COLORS[f'{self.COLUMN_NAME_DONE}-column'])
             except:
                 self.selected_task_card = None
 
@@ -1333,9 +1396,7 @@ class KanbanTxtViewer:
             self.selected_task_card = selected_highlight_frame
 
     def highlight_task(self, event):
-        if self.drop_areas_frame is not None:
-            self.drop_areas_frame.destroy()
-            self.drop_areas_frame = None
+        self.clear_drop_areas_frame()
         selected_widget = event.widget
         self.highlight_selected_task_card(selected_widget)
         searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")
