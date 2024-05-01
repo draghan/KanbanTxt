@@ -54,6 +54,12 @@ To edit the to do list you can use the integrated text editor to the left of the
 
 You can click on the text in a task card to move the cursor of text editor to the right line.
 
+### Search a task
+
+You can search for tasks, by using the text input box "search for tasks:" above the text editor and pressing the "enter" key or the "apply" button.
+The application will switch to the filter view - a read-only mode, in which you can only view and select tasks. To edit selected task, you must close the filter view by pressing the "close" button. The application will remember selected task, so you could edit it if you wish.
+By default, application uses a simple search, checking whether the line contains entered filter text, ignoring letters' case. You can do an advanced search using the regex mode, which you can turn on with the "use regex" checkbox.
+
 ### Move a card to another column
 
 I used the todo.txt special key-val tags to define in which column each task should appear.
