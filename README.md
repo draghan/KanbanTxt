@@ -38,6 +38,11 @@ Just download the KanbanTxt.py script.
 python KanbanTxt.py
 ```
 
+On Windows, you can also use the `pythonw` executor instead of `python`, to not open the console window alongside the Kanban window:
+```
+pythonw KanbanTxt.py
+```
+
 By adding the `--file` parameter it is possible to open a todo.txt file while opening KanbanTxt
 
 ```
@@ -56,8 +61,12 @@ You can click on the text in a task card to move the cursor of text editor to th
 
 ### Search a task
 
-You can search for tasks, by using the text input box "search for tasks:" above the text editor and pressing the "enter" key or the "apply" button.
-The application will switch to the filter view - a read-only mode, in which you can only view and select tasks. To edit selected task, you must close the filter view by pressing the "close" button. The application will remember selected task, so you could edit it if you wish.
+To search for tasks, press *ctrl + f* or use the text input box "filter tasks:" above the text editor. Confirm by pressing the *enter* key or the "apply" button.
+
+The application will switch to the filter view. In this view you can modify filtered tasks and save the file, but you can't remove or add any new tasks, also opening new file is not possible.
+
+To close the filter view, press *esc* or click on the "close" button.
+
 By default, application uses a simple search, checking whether the line contains entered filter text, ignoring letters' case. You can do an advanced search using the regex mode, which you can turn on with the "use regex" checkbox.
 
 ### Move a card to another column

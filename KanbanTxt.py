@@ -108,6 +108,8 @@ class KanbanTxtViewer:
     KANBAN_VAL_VALIDATION = "validation"
 
     def __init__(self, file='', darkmode=False) -> None:
+        self.filter_view_message = None
+        self.editor_warning_tooltip = None
         self.widgets_for_disable_in_filter_mode = []
         self.non_filtered_content_line_mapping = None
         self.non_filtered_content = None
@@ -148,6 +150,9 @@ class KanbanTxtViewer:
         self.main_window = tk.Tk()
         self.main_window.bind('<Button-1>', self.clear_drop_areas_frame)
         self.main_window.bind('<Motion>', self.highlight_drop_area)
+        self.main_window.bind('<Control-f>', self.activate_search_input)
+        self.main_window.bind('<Escape>', self.deactivate_search_input)
+
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
         if icon_path.exists():
@@ -173,6 +178,16 @@ class KanbanTxtViewer:
         if os.path.isfile(self.file):
             self.load_file()
 
+    def activate_search_input(self, event):
+        if self.filter is not None:
+            self.clear_filter()
+        self.filter_entry_box.focus()
+
+    def deactivate_search_input(self, event):
+        if self.filter is not None:
+            self.clear_filter()
+        self.text_editor.focus()
+
     def get_cursor_pos(self):
         return self.main_window.winfo_pointerx(), self.main_window.winfo_pointery()
 
@@ -186,8 +201,6 @@ class KanbanTxtViewer:
         self.highlight_task(event)
 
     def on_drag_init(self, event):
-        if self.filter is not None:
-            return
         dragged_widget_name = event.widget.winfo_name()
         if dragged_widget_name in self.dragged_widgets:
             return
@@ -326,8 +339,6 @@ class KanbanTxtViewer:
         return None
 
     def on_drop(self, event):
-        if self.filter is not None:
-            return
         dragged_widget_name = event.widget.winfo_name()
         if dragged_widget_name not in self.dragged_widgets:
             return
@@ -364,7 +375,8 @@ class KanbanTxtViewer:
             color=self.COLORS['button'],
             activetextcolor=self.COLORS['main-background'],
             command=self.open_file,
-            tooltip="Open file"
+            tooltip="Open file",
+            disable_in_filter_view=True
         )
         load_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
 
@@ -418,8 +430,10 @@ class KanbanTxtViewer:
             'x \t\t—  done\n'
             f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  {self.COLUMN_NAME_IN_PROGRESS}\n'
             f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_NAME_VALIDATION}\n'
-            'Ctrl + s \t\t—  refresh and save\n'
-            'Alt + ↑ / ↓ \t—  move line up / down\n',
+            'F5,  Ctrl + s \t—  refresh and save\n'
+            'Alt + ↑ / ↓ \t—  move line up / down\n'
+            'Ctrl + f \t\t—  filter tasks\n'
+            'ESC \t\t—  close filter view\n',
             bg=self.COLORS['editor-background'],
             anchor=tk.NW,
             justify='left',
@@ -435,23 +449,23 @@ class KanbanTxtViewer:
         self.filter_frame = tk.Frame(edition_frame, bg=self.COLORS['editor-background'])
         self.filter_frame.pack(side='top', fill='both', expand=0, padx=10, pady=0)
 
-        filter_label = tk.Label(self.filter_frame, text='search for tasks:',
+        filter_label = tk.Label(self.filter_frame, text='filter tasks:',
             bg=self.COLORS['editor-background'],
             anchor=tk.NW,
             justify='left',
             fg=self.COLORS['main-text'],
             font=tkFont.nametofont('main'))
-        filter_label.pack(side="left", padx=(10,0), pady=10, anchor=tk.NE)
+        filter_label.pack(side="left", padx=(10,0), anchor=tk.W)
 
         filter_text_var = tk.StringVar(self.filter_frame)
         self.filter_entry_box = tk.Entry(self.filter_frame,
             textvariable=filter_text_var,
-            bd=2,
+            bd=0,
             font=(main, 12),
-            bg=self.COLORS['editor-background'],
+            bg=self.COLORS['done-card-background'],
             fg=self.COLORS['main-text'],
             insertbackground=self.COLORS['main-text'])
-        self.filter_entry_box.pack(side="left", padx=(10,0), pady=10, anchor=tk.NE)
+        self.filter_entry_box.pack(side="left", padx=(10,0), anchor=tk.W)
         self.filter_entry_box.bind('<Return>', self.apply_filter)
         self.widgets_for_disable_in_filter_mode.append(self.filter_entry_box)
 
@@ -462,7 +476,8 @@ class KanbanTxtViewer:
             color=self.COLORS['button'],
             activetextcolor=self.COLORS['main-background'],
             command=self.apply_filter,
-            tooltip="Apply search filter"
+            tooltip="Apply search filter",
+            disable_in_filter_view=True
         )
         self.apply_filter_button.pack(side="left", padx=(10,0), pady=10, anchor=tk.NE)
 
@@ -474,17 +489,20 @@ class KanbanTxtViewer:
             activetextcolor=self.COLORS['main-background'],
             command=self.clear_filter,
             tooltip="Close search results mode",
-            disable_in_filter_view=False
+            disable_in_filter_view=True
         )
         self.clear_filter_button.winfo_children()[0].configure(state='disabled')
         self.clear_filter_button.pack(side="left", padx=(10, 0), pady=10, anchor=tk.NE)
-        self.widgets_for_disable_in_filter_mode.append(self.clear_filter_button.winfo_children()[0])
 
         self.use_regex_val = tk.IntVar()
         self.use_regex_checkbox = tk.Checkbutton(self.filter_frame,
                                                  text='use regex',
-                                                 variable=self.use_regex_val)
-        self.use_regex_checkbox.pack(side="left", padx=(10, 0), pady=10, anchor=tk.NE)
+                                                 variable=self.use_regex_val,
+                                                 fg=self.COLORS['button'],
+                                                 bg=self.COLORS['editor-background'],
+                                                 selectcolor=self.COLORS['done-card-background']
+                                                 )
+        self.use_regex_checkbox.pack(side="left", padx=(10, 0), anchor=tk.W)
         user_regex_hovertip = Hovertip(self.use_regex_checkbox, "If selected, uses a regular expression for matching each line; otherwise uses simple search, case insensitive.")
         self.widgets_for_disable_in_filter_mode.append(self.use_regex_checkbox)
 
@@ -511,7 +529,6 @@ class KanbanTxtViewer:
         self.text_editor.tag_configure('pair', background=self.COLORS['done-card-background'])
         self.text_editor.tag_configure('current_pos', background=self.COLORS['project'])
         self.text_editor.tag_configure('insert', background='red')
-        self.widgets_for_disable_in_filter_mode.append(self.text_editor)
 
         # EDITOR TOOLBAR
         editor_toolbar = tk.Frame(edition_frame, bg=self.COLORS['editor-background'])
@@ -625,7 +642,8 @@ class KanbanTxtViewer:
             '↑', 
             self.COLORS['button'], 
             command=self.move_line_up,
-            tooltip="Move line up"
+            tooltip="Move line up",
+            disable_in_filter_view=True
         ).grid(row=2, sticky='ew', column=1, padx=5, pady=5)
 
         # Move line down
@@ -634,7 +652,8 @@ class KanbanTxtViewer:
             '↓', 
             self.COLORS['button'], 
             command=self.move_line_down,
-            tooltip="Move line down"
+            tooltip="Move line down",
+            disable_in_filter_view=True
         ).grid(row=2, sticky='ew', column=2, padx=5, pady=5)
 
         # Delete line
@@ -643,7 +662,8 @@ class KanbanTxtViewer:
             'Delete', 
             self.COLORS['button'], 
             command=self.remove_line,
-            tooltip="Remove current line"
+            tooltip="Remove current line",
+            disable_in_filter_view=True
         ).grid(row=2, sticky='ew', column=3, padx=5, pady=5)
 
         editor_toolbar.columnconfigure(0, weight=1, uniform='toolbar-item')
@@ -656,20 +676,23 @@ class KanbanTxtViewer:
         #EDITOR END
 
         # Bind all the option to update and save the file
-        self.text_editor.bind('<Return>', self.return_pressed)
-        self.text_editor.bind('<BackSpace>', self.return_pressed)
+        self.text_editor.bind('<Return>', self.on_return_pressed)
+        self.text_editor.bind('<BackSpace>', self.on_backspace_pressed)
+        self.text_editor.bind('<Delete>', self.on_delete_pressed)
+        self.text_editor.bind('<space>', self.on_whitespace_pressed)
+        self.text_editor.bind('<Tab>', self.on_whitespace_pressed)
         self.text_editor.bind('<Control-space>', self.reload_and_save)
         self.text_editor.bind('<F5>', self.reload_and_save)
 
         # Bind navigation keys for proper tasks highlights
         # todo: make this more efficient, no need to update on every left/right, also no need to update editor colors
-        self.text_editor.bind('<Up>', self.return_pressed)
-        self.text_editor.bind('<Down>', self.return_pressed)
-        self.text_editor.bind('<Right>', self.return_pressed)
-        self.text_editor.bind('<Left>', self.return_pressed)
-        self.text_editor.bind('<Control-End>', self.return_pressed)
-        self.text_editor.bind('<Control-Home>', self.return_pressed)
-        self.text_editor.bind('<Button-1>', self.return_pressed)
+        self.text_editor.bind('<Up>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Down>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Right>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Left>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Control-End>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Control-Home>', self.schedule_update_of_editor_line_colors)
+        self.text_editor.bind('<Button-1>', self.schedule_update_of_editor_line_colors)
 
         # Shortkeys
         self.text_editor.bind('<Alt-Up>', self.move_line_up)
@@ -818,7 +841,7 @@ class KanbanTxtViewer:
         bordersize=2,
         command=None,
         tooltip=None,
-        disable_in_filter_view=True
+        disable_in_filter_view=False
     ):
         """Create a button with a border and no background"""
         button_frame = tk.Frame(
@@ -1155,8 +1178,6 @@ class KanbanTxtViewer:
 
     def open_file(self, event=None):
         """Open a dialog to select a file to load"""
-        if self.filter is not None:
-            return
         self.file = filedialog.askopenfilename(
             initialdir='.', 
             filetypes=[("todo list file", "*todo.txt"), ("txt file", "*.txt")],
@@ -1169,7 +1190,7 @@ class KanbanTxtViewer:
         self.filter = self.filter_entry_box.get()
         non_filtered_lines = self.non_filtered_content.split('\n')
         self.non_filtered_content_line_mapping = []
-        filtered_content = ""
+        filtered_content = []
         if self.non_filtered_content is not None:
             for i in range(len(non_filtered_lines)):
                 line = non_filtered_lines[i]
@@ -1180,13 +1201,18 @@ class KanbanTxtViewer:
                     is_this_line_included = self.filter.casefold() in line.casefold()
 
                 if is_this_line_included:
-                    filtered_content += f"{line}\n"
+                    filtered_content.append(line)
                     self.non_filtered_content_line_mapping.append(i)
 
-        self.reload_ui_from_text(filtered_content, f"KanbanTxt - {pathlib.Path(self.file).name} !! FILTER ACTIVE, READ ONLY MODE !!")
+        filtered_text = '\n'.join(filtered_content)
+        self.reload_ui_from_text(filtered_text, f"KanbanTxt - {pathlib.Path(self.file).name} !! FILTER VIEW ACTIVE !!")
+        self.text_editor.edit_reset()
         self.text_editor.mark_set('insert', "1.0")
-        self.return_pressed()
+        self.schedule_update_of_editor_line_colors()
         self.text_editor.see('insert')
+        if self.filter_view_message is not None:
+            self.remove_custom_tooltip(self.filter_view_message)
+        self.filter_view_message = self.add_custom_tooltip(self.filter_frame, f" Filter view: showing {len(filtered_content)} of {len(non_filtered_lines)} tasks ")
         for widget in self.widgets_for_disable_in_filter_mode:
             if widget['state'] == 'disabled':
                 widget.config(state='normal')
@@ -1194,7 +1220,11 @@ class KanbanTxtViewer:
                 widget.config(state='disabled')
 
     def clear_filter(self):
+        self.non_filtered_content = self.merge_filtered_with_original()
         self.filter = None
+        if self.filter_view_message is not None:
+            self.remove_custom_tooltip(self.filter_view_message)
+        self.filter_view_message = None
         for widgets in self.widgets_for_disable_in_filter_mode:
             if widgets['state'] == 'disabled':
                 widgets.config(state='normal')
@@ -1208,12 +1238,27 @@ class KanbanTxtViewer:
             editor_insert_address = self.text_editor.index(tk.INSERT)
             selected_line = int(editor_insert_address.split('.')[0])
             self.reload_ui_from_text(self.non_filtered_content, f"KanbanTxt - {pathlib.Path(self.file).name}")
+            self.text_editor.edit_reset()
             line_number_to_select = 0
             if self.non_filtered_content_line_mapping is not None and selected_line <= len(self.non_filtered_content_line_mapping):
                 line_number_to_select = self.non_filtered_content_line_mapping[selected_line-1]
             self.text_editor.mark_set('insert', f"{line_number_to_select + 1}.0")
-            self.return_pressed(None)
+            self.schedule_update_of_editor_line_colors(None)
             self.text_editor.see('insert')
+            self.reload_and_save()
+
+    def merge_filtered_with_original(self):
+        if self.filter is None:
+            return self.non_filtered_content
+
+        filtered_content = self.text_editor.get("1.0", "end-1c").split('\n')
+        non_filtered_content = self.non_filtered_content.split('\n')
+
+        for i in range(len(filtered_content)):
+            if i < len(self.non_filtered_content_line_mapping):
+                target_index = self.non_filtered_content_line_mapping[i]
+                non_filtered_content[target_index] = filtered_content[i]
+        return '\n'.join(non_filtered_content)
 
     def load_file(self):
         if os.path.isfile(self.file):
@@ -1222,33 +1267,44 @@ class KanbanTxtViewer:
             self.non_filtered_content = content
             self.reload_ui_from_text(content, title)
     
-    def reload_ui_from_text(self, text, title):
+    def reload_ui_from_text(self, text=None, title=None):
+        if text is None:
+            text = self.text_editor.get("1.0", "end-1c")
         self.text_editor.delete('1.0', 'end')
         self.text_editor.insert(tk.INSERT, text)
         self.text_editor.focus()
         self.text_editor.mark_set('insert', 'end')
         self.text_editor.see('insert')
         todo_cards = self.parse_todo_txt(text)
-        self.main_window.title(title)
+        if title is not None:
+            self.main_window.title(title)
 
     def reload_and_save(self, event=None):
         """Reload the kanban and save the editor content in the current todo.txt
             file """
-        if self.filter is not None:
-            return
+        was_filter_active = self.filter is not None
+        editor_insert_address = self.text_editor.index(tk.INSERT)
+        selected_line = int(editor_insert_address.split('.')[0])
+        if was_filter_active:
+            self.clear_filter()
+
         self.non_filtered_content = self.text_editor.get("1.0", "end-1c")
-        data = self.parse_todo_txt(self.text_editor.get("1.0", "end-1c"))
-        # self.update_ui(data)
+
         if self.file:
-            self.fwrite(self.file, self.text_editor.get("1.0", "end-1c"))
+            self.fwrite(self.file, self.non_filtered_content)
+
+        if was_filter_active:
+            self.apply_filter()
+        else:
+            self.parse_todo_txt(self.non_filtered_content)
+
+        self.text_editor.mark_set('insert', f"{selected_line}.0")
+        self.text_editor.see('insert')
 
 
     def reload_and_create_file(self, event=None):
         """In case no file were open, open a dialog to choose where to save the 
             current data"""
-        if self.filter is not None:
-            return
-
         if not os.path.isfile(self.file):
             new_file = filedialog.asksaveasfile(
                 initialdir='.',
@@ -1437,8 +1493,6 @@ class KanbanTxtViewer:
         self.reload_and_save()
 
     def move_to_todo(self, event=None):
-        if self.filter is not None:
-            return
         self.set_editor_line_state('')
 
     def change_priority_to_A(self):
@@ -1456,28 +1510,18 @@ class KanbanTxtViewer:
         self.change_priority(None, "E")
 
     def change_priority(self, event=None, new_priority=None):
-        if self.filter is not None:
-            return
         self.set_editor_line_priority(new_priority)
 
     def move_to_in_progress(self, event=None):
-        if self.filter is not None:
-            return
         self.set_editor_line_state(f' {self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS}')
 
     def move_to_validation(self, event=None):
-        if self.filter is not None:
-            return
         self.set_editor_line_state(f' {self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION}')
 
     def move_to_done(self, event=None):
-        if self.filter is not None:
-            return
         self.set_editor_line_state('x')
 
     def add_date(self, event=None):
-        if self.filter is not None:
-            return
         current_line = self.text_editor.get("insert linestart", "insert lineend")
         match = re.match(r'x|\([A-C]\) ', current_line)
         insert_index = 0
@@ -1516,7 +1560,83 @@ class KanbanTxtViewer:
         self.display_content()
         pass
 
-    def return_pressed(self, event=None):
+    def is_deletion_forbidden(self, is_removing_rhs=False):
+        allow_delete = True
+        cursor_address = self.text_editor.index(tk.INSERT)
+        cursor_row = int(cursor_address.split('.')[1])
+        forbidden_row = 0
+        if is_removing_rhs:
+            cursor_line = int(cursor_address.split('.')[0])
+            last_row_address = self.text_editor.index(f'{cursor_line}.end')
+            last_row = int(last_row_address.split('.')[1])
+            forbidden_row = last_row
+
+        current_line_text = self.text_editor.get("insert linestart", "insert lineend")
+        # we don't allow deletion, when:
+        #   - user have selected the whole text in line,
+        #   - user have selected text in a way that after its deletion there will be empty line or only whitespace left,
+        #   - user is at the forbidden row of the line (e.g. last row for 'delete' button),
+        #   - there will be no non-whitespace left after deletion.
+        if self.text_editor.tag_ranges(tk.SEL):
+            selected_text_in_line = self.text_editor.get(tk.SEL_FIRST, tk.SEL_LAST)
+            text_left_begin = self.text_editor.get("insert linestart", tk.SEL_FIRST)
+            text_left_end = self.text_editor.get(tk.SEL_LAST, "insert lineend")
+            text_combined = text_left_begin + text_left_end
+            if len(text_combined.strip()) == 0:
+                allow_delete = False
+        else:
+            if cursor_row == forbidden_row:
+                allow_delete = False
+            else:
+                deleted_char_index = cursor_row if is_removing_rhs else cursor_row - 1
+                text_after_deletion = current_line_text[0:deleted_char_index] + current_line_text[deleted_char_index+1:]
+                if len(text_after_deletion.strip()) == 0:
+                    allow_delete = False
+        return not allow_delete
+
+    def on_backspace_pressed(self, event=None):
+        if self.filter is None:
+            self.schedule_update_of_editor_line_colors(event)
+            return
+        if self.is_deletion_forbidden(is_removing_rhs=False):
+            self.flash_editor_warning_tooltip("Can't remove tasks when the filter view is active!")
+            return "break"
+
+    def on_whitespace_pressed(self, event=None):
+        if self.filter is None:
+            return
+        # don't allow to replace the whole line with whitespace in filter view
+        if self.text_editor.tag_ranges(tk.SEL):
+            text_left_begin = self.text_editor.get("insert linestart", tk.SEL_FIRST)
+            text_left_end = self.text_editor.get(tk.SEL_LAST, "insert lineend")
+            text_combined = text_left_begin + text_left_end
+            if len(text_combined.strip()) == 0:
+                self.flash_editor_warning_tooltip("Can't remove tasks when the filter view is active!")
+                return "break"
+
+    def on_delete_pressed(self, event=None):
+        if self.filter is None:
+            self.schedule_update_of_editor_line_colors(event)
+            return
+
+        if self.is_deletion_forbidden(is_removing_rhs=True):
+            self.flash_editor_warning_tooltip("Can't remove tasks when the filter view is active!")
+            return "break"
+
+    def on_return_pressed(self, event=None):
+        if self.filter is None:
+            self.main_window.after(100, self.reload_and_save)
+            return
+
+        cursor_pos = self.text_editor.index(tk.INSERT)
+        self.reload_ui_from_text()
+        self.text_editor.mark_set('insert', cursor_pos)
+        self.text_editor.see('insert')
+        self.update_editor_line_colors()
+        self.flash_editor_warning_tooltip("Can't add new tasks when the filter view is active!")
+        return "break"
+
+    def schedule_update_of_editor_line_colors(self, event=None):
         self.main_window.after(100, self.update_editor_line_colors)
 
     def update_editor_line_colors(self, event=None):
@@ -1580,13 +1700,40 @@ class KanbanTxtViewer:
         searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")
         self.text_editor.mark_set('insert', searched_task_line + ".0")
         self.text_editor.see('insert')
-        self.return_pressed()
+        self.schedule_update_of_editor_line_colors()
 
     def get_priority_color(self, current_priority):
         index = ord(current_priority) - ord('A')
         if index >= len(self.COLORS['priority_color_scale']) or index < 0:
             index = -1
         return self.COLORS['priority_color_scale'][index]
+
+    def add_custom_tooltip(self, widget, text):
+        x, y, _, _ = widget.bbox("insert")
+        abs_rootx = self.main_window.winfo_rootx()
+        abs_rooty = self.main_window.winfo_rooty()
+        rootx = widget.winfo_rootx()
+        rooty = widget.winfo_rooty()
+        x += rootx - abs_rootx + 5
+        y += rooty - abs_rooty - 20
+        custom_tooltip = tk.Label(text=text, background="lightyellow", relief="solid", borderwidth=1, font=(main, 12))
+        custom_tooltip.place(x=x, y=y)
+        return custom_tooltip
+
+    def remove_custom_tooltip(self, tooltip):
+        tooltip.place_forget()
+
+    def flash_editor_warning_tooltip(self, text):
+        if self.editor_warning_tooltip is not None:
+            self.hide_editor_warning_tooltip()
+        self.text_editor.bell()
+        self.editor_warning_tooltip = self.add_custom_tooltip(self.text_editor, text)
+        self.main_window.after(2000, self.hide_editor_warning_tooltip)
+
+    def hide_editor_warning_tooltip(self):
+        if self.editor_warning_tooltip is not None:
+            self.remove_custom_tooltip(self.editor_warning_tooltip)
+            self.editor_warning_tooltip = None
 
 
 def main(args):
