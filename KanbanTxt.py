@@ -21,10 +21,46 @@ import re
 from datetime import date
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import simpledialog
 import tkinter.font as tkFont
 import argparse
 from idlelib.tooltip import Hovertip
 import ctypes
+
+
+class CustomizeViewDialog(simpledialog.Dialog):
+    def __init__(self, parent, title, out_show_project, out_show_context, out_show_special_kv_data, out_show_priority, out_show_date, out_show_content):
+        self.show_project = out_show_project
+        self.show_context = out_show_context
+        self.show_special_kv_data = out_show_special_kv_data
+        self.show_priority = out_show_priority
+        self.show_date = out_show_date
+        self.show_content = out_show_content
+        super().__init__(parent, title)
+
+    def create_checkbox(self, text, tooltip, variable, frame):
+        checkbox = tk.Checkbutton(frame, text=text, variable=variable)
+        Hovertip(checkbox, tooltip)
+        checkbox.pack(anchor=tk.W)
+
+    def body(self, frame):
+        self.create_checkbox('Priority', 'Show priority of a task on a card', self.show_priority, frame)
+        self.create_checkbox('Date', 'Show date of a task on a card', self.show_date, frame)
+        self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame)
+        self.create_checkbox('Context', 'Show context labels of a task on a card', self.show_context, frame)
+        self.create_checkbox('Special k-v data', 'Show special k-v data labels of a task on a card', self.show_special_kv_data, frame)
+        self.create_checkbox('Main content', 'Show the main content of a task on a card', self.show_content, frame)
+        return frame
+
+    def exit(self):
+        self.destroy()
+
+    def buttonbox(self):
+        ok_button = tk.Button(self, text='OK', width=5, command=self.exit)
+        ok_button.pack(side='right')
+        self.bind("<Escape>", lambda event: self.exit())
+        self.bind("<Return>", lambda event: self.exit())
+
 
 class KanbanTxtViewer:
     COLUMN_NAME_TODO = "To Do"
@@ -108,17 +144,28 @@ class KanbanTxtViewer:
     KANBAN_VAL_VALIDATION = "validation"
 
     def __init__(self, file='', darkmode=False) -> None:
+        self.card_font_size = 10
+
+        self.show_project = True
+        self.show_context = True
+        self.show_special_kv_data = True
+        self.show_priority = True
+        self.show_date = True
+        self.show_content = True
+
         self.filter_view_message = None
         self.editor_warning_tooltip = None
         self.widgets_for_disable_in_filter_mode = []
         self.non_filtered_content_line_mapping = None
         self.non_filtered_content = None
         self.filter = None
+
         self.drag_begin_cursor_pos = (0, 0)
         self.dragged_widgets = []
         self.drop_areas = []
         self.drop_areas_frame = None
         self.drop_area_highlight = None
+
         self.darkmode = darkmode
 
         self.file = file
@@ -152,6 +199,7 @@ class KanbanTxtViewer:
         self.main_window.bind('<Motion>', self.highlight_drop_area)
         self.main_window.bind('<Control-f>', self.activate_search_input)
         self.main_window.bind('<Escape>', self.deactivate_search_input)
+        self.main_window.bind('<Control-MouseWheel>', self.on_control_scroll)
 
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
@@ -355,6 +403,32 @@ class KanbanTxtViewer:
         self.drop_areas.clear()
         self.clear_drop_areas_frame()
 
+    def on_show_button(self, event=None):
+        show_project_var = tk.IntVar(value=self.show_project)
+        show_context_var = tk.IntVar(value=self.show_context)
+        show_special_kv_data_var = tk.IntVar(value=self.show_special_kv_data)
+        show_priority_var = tk.IntVar(value=self.show_priority)
+        show_date_var = tk.IntVar(value=self.show_date)
+        show_content_var = tk.IntVar(value=self.show_content)
+
+        CustomizeViewDialog(title="Customize",
+                            parent=self.main_window,
+                            out_show_date=show_date_var,
+                            out_show_priority=show_priority_var,
+                            out_show_content=show_content_var,
+                            out_show_context=show_context_var,
+                            out_show_project=show_project_var,
+                            out_show_special_kv_data=show_special_kv_data_var)
+
+        self.show_date = show_date_var.get()
+        self.show_priority = show_priority_var.get()
+        self.show_content = show_content_var.get()
+        self.show_context = show_context_var.get()
+        self.show_project = show_project_var.get()
+        self.show_special_kv_data = show_special_kv_data_var.get()
+
+        self.reload_ui_from_text()
+
     def draw_editor_panel(self):
         self.widgets_for_disable_in_filter_mode.clear()
 
@@ -363,7 +437,7 @@ class KanbanTxtViewer:
         edition_frame.grid(row=0, column=0, sticky=tk.NSEW)
         self.main_window.grid_rowconfigure(0, weight=1)
         self.main_window.grid_columnconfigure(0, weight=1)
-        
+
         # HEADER
         editor_header = tk.Frame(edition_frame, bg=self.COLORS['editor-background'])
         editor_header.pack(side='top', fill='both', expand=0, padx=10, pady=0)
@@ -420,6 +494,14 @@ class KanbanTxtViewer:
         darkmode_button.bind("<Button-1>", self.switch_darkmode)
         # END Light mode / dark mode switch
 
+        show_hide_button = self.create_button(editor_header,
+                                              "👁",
+                                              command=self.on_show_button,
+                                              bordersize=2,
+                                              color=self.COLORS['button'],
+                                              activetextcolor=self.COLORS['main-background'],
+                                              tooltip="Select elements of task cards to be shown or hidden")
+        show_hide_button.pack(side="left", padx=(10,0), pady=10, anchor=tk.NE)
         #END HEADER
 
         # Separator
@@ -1067,7 +1149,7 @@ class KanbanTxtViewer:
         subject_padx = 10
 
         # If needed, add a color border for priority marking
-        if priority is not None:
+        if priority is not None and self.show_priority:
             prio_color = self.get_priority_color(priority)
             important_border = tk.Frame(ui_card, bg=prio_color, width="3", name=get_widget_name(name))
             bind_highlight_and_drag_n_drop(important_border)
@@ -1078,32 +1160,33 @@ class KanbanTxtViewer:
                 fg=prio_color,
                 bg=ui_card['bg'],
                 anchor=tk.W,
-                font=tkFont.Font(family='arial', size=18, weight=tkFont.BOLD),
+                font=tkFont.Font(family='arial', size=self.card_font_size + 8, weight=tkFont.BOLD),
                 name=get_widget_name(name)
             )
             important_label.pack(side="left", anchor=tk.NW, padx=0, pady=(5,0))
             bind_highlight_and_drag_n_drop(important_label)
             subject_padx = 0
 
-        card_label = tk.Label(
-            ui_card, 
-            text=subject, 
-            fg=self.COLORS['main-text'], 
-            bg=ui_card['bg'], 
-            anchor=tk.W, 
-            wraplength=200, 
-            justify='left',
-            font=tkFont.nametofont(font),
-            name=get_widget_name(name)
-        )
+        if self.show_content:
+            card_label = tk.Label(
+                ui_card, 
+                text=subject, 
+                fg=self.COLORS['main-text'], 
+                bg=ui_card['bg'], 
+                anchor=tk.W, 
+                wraplength=200, 
+                justify='left',
+                font=(font, self.card_font_size),
+                name=get_widget_name(name)
+            )
 
-        # Adapt elide length when width change
-        card_label.bind("<Configure>", self.on_card_width_changed)
-        bind_highlight_and_drag_n_drop(card_label)
-        card_label.pack(padx=subject_padx, pady=5, fill='x', side="top", anchor=tk.W)
+            # Adapt elide length when width change
+            card_label.bind("<Configure>", self.on_card_width_changed)
+            bind_highlight_and_drag_n_drop(card_label)
+            card_label.pack(padx=subject_padx, pady=5, fill='x', side="top", anchor=tk.W)
 
         # If needed, show the task duration
-        if start_date:
+        if start_date and self.show_date:
             duration = 0
             if not end_date:
                 end_date = self.current_date
@@ -1118,18 +1201,18 @@ class KanbanTxtViewer:
                 bg=ui_card['bg'], 
                 anchor=tk.W, 
                 justify='left',
-                font=("Arial", 8),
+                font=("Arial", self.card_font_size - 2),
                 wraplength=85,
                 name=get_widget_name(name)
             )
             if (project or context) and (len(project) > 0 or len(context) > 0):
                 duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=0)
             else:
-                duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=(0,10))
+                duration_label.pack(side="top", anchor=tk.NW, padx=10, pady=(0,2))
             bind_highlight_and_drag_n_drop(duration_label)
 
         # Add project and context tags if needed
-        if project and len(project) > 0:
+        if project and len(project) > 0 and self.show_project:
             project_string = ", ".join([p["project"] for p in project])
             project_label = tk.Label(
                 ui_card, 
@@ -1137,12 +1220,13 @@ class KanbanTxtViewer:
                 fg=self.COLORS["project"], 
                 bg=ui_card['bg'], 
                 anchor=tk.E,
-                name=get_widget_name(name)
+                name=get_widget_name(name),
+                font=("Arial", self.card_font_size - 2),
             )
-            project_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+            project_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(project_label)
 
-        if context and len(context) > 0:
+        if context and len(context) > 0 and self.show_context:
             context_string = ", ".join([c["context"] for c in context])
             context_label = tk.Label(
                 ui_card, 
@@ -1150,12 +1234,13 @@ class KanbanTxtViewer:
                 fg=self.COLORS['context'], 
                 bg=ui_card['bg'], 
                 anchor=tk.E,
-                name=get_widget_name(name)
+                name=get_widget_name(name),
+                font=("Arial", self.card_font_size - 2),
             )
-            context_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+            context_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(context_label)
 
-        if special_kv_data is not None and len(special_kv_data) > 0:
+        if special_kv_data is not None and len(special_kv_data) > 0 and self.show_special_kv_data:
             special_kv_data_string = ", ".join([f"{special_kv_data_entry['key']}:{special_kv_data_entry['val']}" for
                                                 special_kv_data_entry in special_kv_data])
             special_kv_entry_label = tk.Label(
@@ -1164,9 +1249,10 @@ class KanbanTxtViewer:
                 fg=self.COLORS['kv-data'],
                 bg=ui_card['bg'],
                 anchor=tk.E,
-                name=get_widget_name(name)
+                name=get_widget_name(name),
+                font=("Arial", self.card_font_size - 2),
             )
-            special_kv_entry_label.pack(padx=10, pady=5, fill='x', side="top", anchor=tk.E)
+            special_kv_entry_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(special_kv_entry_label)
 
         ui_card.pack(padx=1, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
@@ -1175,6 +1261,15 @@ class KanbanTxtViewer:
 
         return ui_card
 
+    def on_control_scroll(self, event):
+        delta = (event.delta/120)
+        new_font_size = self.card_font_size + int(delta)
+        if new_font_size <= 4:
+            new_font_size = 4
+        if new_font_size != self.card_font_size:
+            self.card_font_size = new_font_size
+            self.reload_ui_from_text()
+        return "break"
 
     def open_file(self, event=None):
         """Open a dialog to select a file to load"""

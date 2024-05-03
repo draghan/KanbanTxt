@@ -111,7 +111,19 @@ Using the "+ date" button add the date of the day at the begining of a line in t
 
 If a creation date is provided, KanbanTxt will display the number of days elapsed from the creation date to the current day on the task. If a completion date is provided, KanbanTxt will add a label to show the time spent on the task.
 
-### Use the dark theme
+### Customize interface
+
+#### Change font size
+
+You can make the task cards' font smaller or bigger by using *ctrl + scroll*.
+
+#### Disable task card elements
+
+You can hide unwanted elements of task cards, for example the special key-value data tags. You can do this by pressing the eye button on the top left and then selecting elements you want to hide.
+
+You can disable basically every element of a task card (including its main content, which might be useful if you want to pick blindly some task to do).
+
+#### Use the dark theme
 
 A little switch with a sun and a moon on the top left corner of the application allows to switch between light and dark mode. This setting is not saved and the program always start with the light theme. But you can launch KanbanTxt in dark mode by running: 
 
