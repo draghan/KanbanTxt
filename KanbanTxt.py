@@ -609,7 +609,7 @@ class KanbanTxtViewer:
         )
         self.text_editor.pack(side="top", fill="both", expand=1, padx=10, pady=10)
         self.text_editor.tag_configure('pair', background=self.COLORS['done-card-background'])
-        self.text_editor.tag_configure('current_pos', background=self.COLORS['project'])
+        self.text_editor.tag_configure('current_pos', foreground='black', background=self.COLORS['project'], selectbackground=self.COLORS[f"{self.COLUMN_NAME_TODO}"])
         self.text_editor.tag_configure('insert', background='red')
 
         # EDITOR TOOLBAR
@@ -1752,7 +1752,7 @@ class KanbanTxtViewer:
         if not task_card_found:
             self.highlight_selected_task_card(None)
 
-        for line_idx in range(nb_line):
+        for line_idx in range(nb_line + 1):
             self.text_editor.tag_remove('pair', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
             self.text_editor.tag_remove('current_pos', str(line_idx) + '.0', str(line_idx) + '.0 lineend +1c')
             if line_idx == selected_line:
@@ -1793,7 +1793,7 @@ class KanbanTxtViewer:
         selected_widget = event.widget
         self.highlight_selected_task_card(selected_widget)
         searched_task_line = selected_widget.winfo_name()[1:].replace("task#", "")
-        self.text_editor.mark_set('insert', searched_task_line + ".0")
+        self.text_editor.mark_set('insert', searched_task_line + ".end")
         self.text_editor.see('insert')
         self.schedule_update_of_editor_line_colors()
 
