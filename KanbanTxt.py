@@ -26,6 +26,7 @@ import tkinter.font as tkFont
 import argparse
 from idlelib.tooltip import Hovertip
 import ctypes
+import json
 
 
 def f_sort_column_by_prio(d):
@@ -262,17 +263,44 @@ class KanbanTxtViewer:
 
     KANBAN_VAL_VALIDATION = "validation"
 
-    def __init__(self, file='', darkmode=False) -> None:
-        self.card_font_size = 10
+    CONFIG_PATH = 'config.json'
+    CONFIG_KEY_FONT_SIZE = 'card_font_size'
+    CONFIG_KEY_HIDE_PROJECT = 'card_hide_project'
+    CONFIG_KEY_HIDE_CONTEXT = 'card_hide_context'
+    CONFIG_KEY_HIDE_SPECIAL_KV_DATA = 'card_hide_special_kv_data'
+    CONFIG_KEY_HIDE_PRIORITY = 'card_hide_priority'
+    CONFIG_KEY_HIDE_DATE = 'card_hide_date'
+    CONFIG_KEY_HIDE_SUBJECT = 'card_hide_subject'
+    CONFIG_KEY_SORT_METHOD = 'sort_method'
+    CONFIG_KEY_DARKMODE = 'darkmode'
 
-        self.show_project = True
-        self.show_context = True
-        self.show_special_kv_data = True
-        self.show_priority = True
-        self.show_date = True
-        self.show_content = True
+    CONFIG_DEFAULTS = {
+        CONFIG_KEY_FONT_SIZE: 10,
+        CONFIG_KEY_HIDE_PROJECT: False,
+        CONFIG_KEY_HIDE_CONTEXT: False,
+        CONFIG_KEY_HIDE_SPECIAL_KV_DATA: False,
+        CONFIG_KEY_HIDE_PRIORITY: False,
+        CONFIG_KEY_HIDE_DATE: False,
+        CONFIG_KEY_HIDE_SUBJECT: False,
+        CONFIG_KEY_SORT_METHOD: 0,
+        CONFIG_KEY_DARKMODE: False,
+    }
 
-        self.sort_method_idx = 0
+    def __init__(self, file='', darkmode=None) -> None:
+        self.config = None
+        if os.path.exists(self.CONFIG_PATH):
+            with open(self.CONFIG_PATH, "r") as config_file:
+                self.config = json.load(config_file)
+        self.card_font_size = self.get_value_from_config_or_default(self.CONFIG_KEY_FONT_SIZE)
+
+        self.show_project = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PROJECT)
+        self.show_context = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_CONTEXT)
+        self.show_special_kv_data = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA)
+        self.show_priority = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PRIORITY)
+        self.show_date = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_DATE)
+        self.show_content = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SUBJECT)
+
+        self.sort_method_idx = self.get_value_from_config_or_default(self.CONFIG_KEY_SORT_METHOD)
 
         self.filter_view_message = None
         self.editor_warning_tooltip = None
@@ -287,6 +315,8 @@ class KanbanTxtViewer:
         self.drop_areas_frame = None
         self.drop_area_highlight = None
 
+        if darkmode is None:
+            darkmode = self.get_value_from_config_or_default(self.CONFIG_KEY_DARKMODE)
         self.darkmode = darkmode
 
         self.file = file
@@ -338,7 +368,7 @@ class KanbanTxtViewer:
 
         # Bind shortkey to open or save a new file
         self.main_window.bind('<Control-s>', self.reload_and_create_file)
-        self.main_window.bind('<Control-o>', self.open_file)
+        self.main_window.bind('<Control-o>', self.open_file_dialog)
 
         self.draw_editor_panel()
 
@@ -346,7 +376,7 @@ class KanbanTxtViewer:
 
         # Load the file provided in arguments if there is one
         if os.path.isfile(self.file):
-            self.load_file()
+            self.load_txt_file()
 
     def activate_search_input(self, event):
         if self.filter is not None:
@@ -552,7 +582,38 @@ class KanbanTxtViewer:
         self.show_special_kv_data = show_special_kv_data_var.get()
         self.sort_method_idx = int(out_sort_method.get())
 
+        self.store_in_config(self.CONFIG_KEY_HIDE_DATE, not self.show_date)
+        self.store_in_config(self.CONFIG_KEY_HIDE_PRIORITY, not self.show_priority)
+        self.store_in_config(self.CONFIG_KEY_HIDE_SUBJECT, not self.show_content)
+        self.store_in_config(self.CONFIG_KEY_HIDE_CONTEXT, not self.show_context)
+        self.store_in_config(self.CONFIG_KEY_HIDE_PROJECT, not self.show_project)
+        self.store_in_config(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA, not self.show_special_kv_data)
+        self.store_in_config(self.CONFIG_KEY_SORT_METHOD, self.sort_method_idx)
+        self.save_config_file()
+
         self.reload_ui_from_text()
+
+    def get_value_from_config_or_default(self, key):
+        value = None
+        if self.config is not None:
+            value = self.config.get(key)
+        if value is None:
+            value = self.CONFIG_DEFAULTS[key]
+        return value
+
+    def store_in_config(self, key, value):
+        if self.config is None:
+            self.config = {}
+        self.config[key] = value
+
+    def save_config_file(self):
+        if self.config is None:
+            return
+        try:
+            with open(self.CONFIG_PATH, "w") as f:
+                json.dump(self.config, f, sort_keys=True, indent=4)
+        except Exception as error:
+            tk.messagebox.showwarning(title="Error writing config file", message=f"Can't save the file '{self.CONFIG_PATH}', make sure you have the right to write here!")
 
     def draw_editor_panel(self):
         self.widgets_for_disable_in_filter_mode.clear()
@@ -573,7 +634,7 @@ class KanbanTxtViewer:
             bordersize=2,
             color=self.COLORS['button'],
             activetextcolor=self.COLORS['main-background'],
-            command=self.open_file,
+            command=self.open_file_dialog,
             tooltip="Open file",
             disable_in_filter_view=True
         )
@@ -606,7 +667,7 @@ class KanbanTxtViewer:
             fg=button_color,
             font=('arial', 12))
         darkmode_button.pack(side="left", padx=2, pady=2)
-        darkmode_button.bind("<Button-1>", self.switch_darkmode)
+        darkmode_button.bind("<Button-1>", self.on_switch_darkmode)
 
         darkmode_button = tk.Label(
             darkmode_button_border, 
@@ -616,7 +677,7 @@ class KanbanTxtViewer:
             fg=self.COLORS['editor-background'],
             font=('arial', 12))
         darkmode_button.pack(side="left", padx=2, pady=2)
-        darkmode_button.bind("<Button-1>", self.switch_darkmode)
+        darkmode_button.bind("<Button-1>", self.on_switch_darkmode)
         # END Light mode / dark mode switch
 
         show_hide_button = self.create_button(editor_header,
@@ -1398,15 +1459,17 @@ class KanbanTxtViewer:
         if new_font_size != self.card_font_size:
             self.card_font_size = new_font_size
             self.reload_ui_from_text()
+            self.store_in_config(self.CONFIG_KEY_FONT_SIZE, new_font_size)
+            self.save_config_file()
         return "break"
 
-    def open_file(self, event=None):
+    def open_file_dialog(self, event=None):
         """Open a dialog to select a file to load"""
         self.file = filedialog.askopenfilename(
             initialdir='.', 
             filetypes=[("todo list file", "*todo.txt"), ("txt file", "*.txt")],
             title='Choose a todo list to display')
-        self.load_file()
+        self.load_txt_file()
 
     def apply_filter(self, event=None):
         self.filter_frame.configure(bg=self.COLORS['project'])
@@ -1484,7 +1547,7 @@ class KanbanTxtViewer:
                 non_filtered_content[target_index] = filtered_content[i]
         return '\n'.join(non_filtered_content)
 
-    def load_file(self):
+    def load_txt_file(self):
         if os.path.isfile(self.file):
             content = self.fread(self.file)
             title = f"KanbanTxt - {pathlib.Path(self.file).name}"
@@ -1597,8 +1660,7 @@ class KanbanTxtViewer:
         """Scroll through the kanban frame"""
         self.content_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
-
-    def switch_darkmode(self, event):
+    def on_switch_darkmode(self, event):
         """Switch from light and dark mode, destroy the UI and recreate it to
             apply the modification"""
         if self.filter is not None:
@@ -1612,7 +1674,8 @@ class KanbanTxtViewer:
         self.main_window.destroy()
         self.draw_ui(int(width), int(height), int(x), int(y))
         self.main_window.state(window_state)
-
+        self.store_in_config(self.CONFIG_KEY_DARKMODE, self.darkmode)
+        self.save_config_file()
 
     def move_line_up(self, event=None):
         if self.filter is not None:
@@ -1624,10 +1687,8 @@ class KanbanTxtViewer:
             self.text_editor.mark_set('insert', 'insert linestart -1l')
         else:
             self.text_editor.mark_set('insert', 'insert linestart -2l')
-        
+
         self.update_editor_line_colors()
-        #self.reload_and_save()
-    
 
     def move_line_down(self, event=None):
         if self.filter is not None:
@@ -1639,16 +1700,13 @@ class KanbanTxtViewer:
             self.text_editor.mark_set('insert', 'insert lineend')
         else:
             self.text_editor.mark_set('insert', 'insert lineend +1l')
-        
+
         self.update_editor_line_colors()
-        # self.reload_and_save()
-    
 
     def remove_line(self, event=None):
         if self.filter is not None:
             return
         self.text_editor.delete("insert linestart", "insert lineend + 1c")
-
 
     def set_state(self, task, newState):
         task = re.sub(rf'\s{self.KANBAN_KEY}:[^\s^:]+', '', task)
@@ -1961,6 +2019,7 @@ class KanbanTxtViewer:
 
 
 def main(args):
+    
     app = KanbanTxtViewer(args.file, args.darkmode)
     if os.name == 'nt':
         app.main_window.state('zoomed')
@@ -1972,6 +2031,6 @@ if __name__ == '__main__':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('KanbanTxt')
     arg_parser = argparse.ArgumentParser(description='Display a todo.txt file as a kanban and allow to edit it')
     arg_parser.add_argument('--file', help='Path to a todo.txt file', required=False, default='', type=str)
-    arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, action='store_true')
+    arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, default=None, action='store_true')
     args = arg_parser.parse_args()
     main(args)
