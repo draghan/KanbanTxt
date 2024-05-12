@@ -131,7 +131,19 @@ SORT_METHODS = [
 ]
 
 class CustomizeViewDialog(simpledialog.Dialog):
-    def __init__(self, parent, title, out_show_project, out_show_context, out_show_special_kv_data, out_show_priority, out_show_date, out_show_content, out_sort_method):
+    def __init__(self, parent, title,
+                 out_show_project,
+                 out_show_context,
+                 out_show_special_kv_data,
+                 out_show_priority,
+                 out_show_date,
+                 out_show_content,
+                 out_sort_method,
+                 out_col0_name,
+                 out_col1_name,
+                 out_col2_name,
+                 out_col3_name,
+                 out_fontsize):
         self.show_project = out_show_project
         self.show_context = out_show_context
         self.show_special_kv_data = out_show_special_kv_data
@@ -139,7 +151,13 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.show_date = out_show_date
         self.show_content = out_show_content
         self.sort_method = out_sort_method
-
+        self.col_names = [
+            out_col0_name,
+            out_col1_name,
+            out_col2_name,
+            out_col3_name,
+        ]
+        self.font_size = out_fontsize
         super().__init__(parent, title)
 
     def create_checkbox(self, text, tooltip, variable, frame):
@@ -152,12 +170,31 @@ class CustomizeViewDialog(simpledialog.Dialog):
         Hovertip(radiobutton, tooltip)
         radiobutton.pack(anchor=tk.W)
 
+    def create_text_entry(self, tooltip, variable, frame, col, row):
+        entry = tk.Entry(frame, textvariable=variable)
+        Hovertip(entry, tooltip)
+        entry.grid(row=row, column=col, padx=10, pady=10, sticky=tk.NW)
+
     def body(self, frame):
         grid_frame = tk.Frame(frame)
         grid_frame.pack(anchor=tk.NW, fill="both")
 
+        row = 0
+        frame_colnames = tk.LabelFrame(grid_frame, text="Column names: ")
+        frame_colnames.grid(columnspan=3, row=row, column=0, padx=10, pady=10, sticky=tk.NW)
+
+        for i, v in enumerate(self.col_names):
+            self.create_text_entry(f"Name of column {i}.", v, frame_colnames, row=row, col=i)
+
+        row = 1
+        frame_sorting = tk.LabelFrame(grid_frame, text="Sort tasks in columns by: ")
+        frame_sorting.grid(row=row, column=0, padx=10, pady=10, sticky=tk.NW)
+        for i in range(len(SORT_METHODS)):
+            m = SORT_METHODS[i]
+            self.create_radiobuttion(m['text'], m['tooltip'], self.sort_method, i, frame_sorting)
+
         frame_show_hide = tk.LabelFrame(grid_frame, text="Show/hide task cards' elements: ")
-        frame_show_hide.grid(row=0, column=0, padx=10, pady=10, sticky=tk.NW)
+        frame_show_hide.grid(row=row, column=1, padx=10, pady=10, sticky=tk.NW)
         self.create_checkbox('Priority', 'Show priority of a task on a card', self.show_priority, frame_show_hide)
         self.create_checkbox('Date', 'Show date of a task on a card', self.show_date, frame_show_hide)
         self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame_show_hide)
@@ -165,14 +202,18 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.create_checkbox('Special k-v data', 'Show special k-v data labels of a task on a card', self.show_special_kv_data, frame_show_hide)
         self.create_checkbox('Subject', 'Show the main content of a task on a card', self.show_content, frame_show_hide)
 
-        frame_sorting = tk.LabelFrame(grid_frame, text="Sort tasks in columns by: ")
-        frame_sorting.grid(row=0, column=1, padx=10, pady=10, sticky=tk.NW)
-        for i in range(len(SORT_METHODS)):
-            m = SORT_METHODS[i]
-            self.create_radiobuttion(m['text'], m['tooltip'], self.sort_method, i, frame_sorting)
-        return frame_show_hide
+        frame_fontsize = tk.LabelFrame(grid_frame, text="Font size: ")
+        frame_fontsize.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
+        fontsize_spinbox = tk.Spinbox(frame_fontsize, from_=4, to=100, textvariable=self.font_size, wrap=True)
+        fontsize_spinbox.pack(anchor=tk.W)
+
 
     def exit(self):
+        string_col_names = [x.get() for x in self.col_names]
+        are_col_names_unique = len(string_col_names) == len(set(string_col_names))
+        if not are_col_names_unique:
+            tk.messagebox.showwarning(title="Error in column names", message=f"You can't set the same name for multiple columns.")
+            return
         self.destroy()
 
     def buttonbox(self):
@@ -183,28 +224,16 @@ class CustomizeViewDialog(simpledialog.Dialog):
 
 
 class KanbanTxtViewer:
-    COLUMN_NAME_TODO = "To Do"
-    COLUMN_NAME_IN_PROGRESS = "In progress"
-    COLUMN_NAME_VALIDATION = "Validation"
-    COLUMN_NAME_DONE = "Done"
-
-    COLUMNS_NAMES = [
-        COLUMN_NAME_TODO,
-        COLUMN_NAME_IN_PROGRESS,
-        COLUMN_NAME_VALIDATION,
-        COLUMN_NAME_DONE
-    ]
-
     THEMES = {
         'LIGHT_COLORS': {
-            COLUMN_NAME_TODO: '#f27272',
-            COLUMN_NAME_IN_PROGRESS: '#00b6e4',
-            COLUMN_NAME_VALIDATION: '#22b57f',
-            COLUMN_NAME_DONE: "#8BC34A",
-            f"{COLUMN_NAME_TODO}-column": '#daecf1',
-            f"{COLUMN_NAME_IN_PROGRESS}-column": '#daecf1',
-            f"{COLUMN_NAME_VALIDATION}-column": '#daecf1',
-            f"{COLUMN_NAME_DONE}-column": "#daecf1",
+            "column0": '#f27272',
+            "column1": '#00b6e4',
+            "column2": '#22b57f',
+            "column3": "#8BC34A",
+            "column0-column": '#daecf1',
+            "column1-column": '#daecf1',
+            "column2-column": '#daecf1',
+            "column3-column": "#daecf1",
             "important": "#a7083b",
             "project": '#00b6e4',
             'context': '#1c9c6d',
@@ -226,14 +255,14 @@ class KanbanTxtViewer:
         },
 
         'DARK_COLORS': {
-            COLUMN_NAME_TODO: '#f27272',
-            COLUMN_NAME_IN_PROGRESS: '#00b6e4',
-            COLUMN_NAME_VALIDATION: '#22b57f',
-            COLUMN_NAME_DONE: "#8BC34A",
-            f"{COLUMN_NAME_TODO}-column": '#15151f',
-            f"{COLUMN_NAME_IN_PROGRESS}-column": '#15151f',
-            f"{COLUMN_NAME_VALIDATION}-column": '#15151f',
-            f"{COLUMN_NAME_DONE}-column": "#15151f",
+            "column0": '#f27272',
+            "column1": '#00b6e4',
+            "column2": '#22b57f',
+            "column3": "#8BC34A",
+            "column0-column": '#15151f',
+            "column1-column": '#15151f',
+            "column2-column": '#15151f',
+            "column3-column": "#15151f",
             "important": "#e12360",
             "project": '#00b6e4',
             'context': '#1c9c6d',
@@ -273,6 +302,10 @@ class KanbanTxtViewer:
     CONFIG_KEY_HIDE_SUBJECT = 'card_hide_subject'
     CONFIG_KEY_SORT_METHOD = 'sort_method'
     CONFIG_KEY_DARKMODE = 'darkmode'
+    CONFIG_KEY_COL_0_NAME = 'column_0'
+    CONFIG_KEY_COL_1_NAME = 'column_1'
+    CONFIG_KEY_COL_2_NAME = 'column_2'
+    CONFIG_KEY_COL_3_NAME = 'column_3'
 
     CONFIG_DEFAULTS = {
         CONFIG_KEY_FONT_SIZE: 10,
@@ -284,6 +317,10 @@ class KanbanTxtViewer:
         CONFIG_KEY_HIDE_SUBJECT: False,
         CONFIG_KEY_SORT_METHOD: 0,
         CONFIG_KEY_DARKMODE: False,
+        CONFIG_KEY_COL_0_NAME: "To Do",
+        CONFIG_KEY_COL_1_NAME: "In progress",
+        CONFIG_KEY_COL_2_NAME: "Validation",
+        CONFIG_KEY_COL_3_NAME: "Done",
     }
 
     def __init__(self, file='', darkmode=None) -> None:
@@ -291,6 +328,19 @@ class KanbanTxtViewer:
         if os.path.exists(self.CONFIG_PATH):
             with open(self.CONFIG_PATH, "r") as config_file:
                 self.config = json.load(config_file)
+
+        self.COLUMN_0_NAME = self.get_value_from_config_or_default(self.CONFIG_KEY_COL_0_NAME)
+        self.COLUMN_1_NAME = self.get_value_from_config_or_default(self.CONFIG_KEY_COL_1_NAME)
+        self.COLUMN_2_NAME = self.get_value_from_config_or_default(self.CONFIG_KEY_COL_2_NAME)
+        self.COLUMN_3_NAME = self.get_value_from_config_or_default(self.CONFIG_KEY_COL_3_NAME)
+
+        self.COLUMNS_NAMES = [
+            self.COLUMN_0_NAME,
+            self.COLUMN_1_NAME,
+            self.COLUMN_2_NAME,
+            self.COLUMN_3_NAME
+        ]
+
         self.card_font_size = self.get_value_from_config_or_default(self.CONFIG_KEY_FONT_SIZE)
 
         self.show_project = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PROJECT)
@@ -446,15 +496,15 @@ class KanbanTxtViewer:
         if distance_x >= distance_y:
             drop_areas_title = "Move this task to:"
             move_functors = {
-                self.COLUMN_NAME_TODO: self.move_to_todo,
-                self.COLUMN_NAME_IN_PROGRESS: self.move_to_in_progress,
-                self.COLUMN_NAME_VALIDATION: self.move_to_validation,
-                self.COLUMN_NAME_DONE: self.move_to_done,
+                self.COLUMN_0_NAME: self.move_to_todo,
+                self.COLUMN_1_NAME: self.move_to_in_progress,
+                self.COLUMN_2_NAME: self.move_to_validation,
+                self.COLUMN_3_NAME: self.move_to_done,
             }
-            for column_name in self.COLUMNS_NAMES:
+            for idx, column_name in enumerate(self.COLUMNS_NAMES):
                 self.drop_areas.append({
                     'name': column_name,
-                    'color': self.COLORS[column_name],
+                    'color': self.COLORS[f"column{idx}"],
                     'functor': move_functors[column_name],
                     'x1': drop_areas_pos_x,
                     'y1': drop_areas_pos_y,
@@ -564,6 +614,13 @@ class KanbanTxtViewer:
         show_content_var = tk.IntVar(value=self.show_content)
         out_sort_method = tk.StringVar(value=self.sort_method_idx)
 
+        out_fontsize = tk.StringVar(value=self.card_font_size)
+
+        out_col0_name = tk.StringVar(value=self.COLUMN_0_NAME)
+        out_col1_name = tk.StringVar(value=self.COLUMN_1_NAME)
+        out_col2_name = tk.StringVar(value=self.COLUMN_2_NAME)
+        out_col3_name = tk.StringVar(value=self.COLUMN_3_NAME)
+
         CustomizeViewDialog(title="Customize view",
                             parent=self.main_window,
                             out_show_date=show_date_var,
@@ -572,7 +629,12 @@ class KanbanTxtViewer:
                             out_show_context=show_context_var,
                             out_show_project=show_project_var,
                             out_show_special_kv_data=show_special_kv_data_var,
-                            out_sort_method=out_sort_method)
+                            out_sort_method=out_sort_method,
+                            out_fontsize=out_fontsize,
+                            out_col0_name=out_col0_name,
+                            out_col1_name=out_col1_name,
+                            out_col2_name=out_col2_name,
+                            out_col3_name=out_col3_name)
 
         self.show_date = show_date_var.get()
         self.show_priority = show_priority_var.get()
@@ -582,6 +644,40 @@ class KanbanTxtViewer:
         self.show_special_kv_data = show_special_kv_data_var.get()
         self.sort_method_idx = int(out_sort_method.get())
 
+        self.card_font_size = int(out_fontsize.get())
+
+        new_column_names = [
+            out_col0_name.get(),
+            out_col1_name.get(),
+            out_col2_name.get(),
+            out_col3_name.get(),
+        ]
+
+        are_new_column_names_unique = len(new_column_names) == len(set(new_column_names)) 
+
+        if are_new_column_names_unique:
+            has_any_column_changed = False
+            for i, new_name in enumerate(new_column_names):
+                old_name = self.COLUMNS_NAMES[i]
+                if old_name != new_name:
+                    self.ui_columns[new_name] = self.ui_columns[old_name]
+                    del self.ui_columns[old_name]
+                    self.progress_bars[new_name] = self.progress_bars[old_name]
+                    del self.progress_bars[old_name]
+                    has_any_column_changed = True
+
+            if has_any_column_changed:
+                self.COLUMNS_NAMES = new_column_names
+                self.COLUMN_0_NAME = new_column_names[0]
+                self.COLUMN_1_NAME = new_column_names[1]
+                self.COLUMN_2_NAME = new_column_names[2]
+                self.COLUMN_3_NAME = new_column_names[3]
+                self.store_in_config(self.CONFIG_KEY_COL_0_NAME, self.COLUMN_0_NAME)
+                self.store_in_config(self.CONFIG_KEY_COL_1_NAME, self.COLUMN_1_NAME)
+                self.store_in_config(self.CONFIG_KEY_COL_2_NAME, self.COLUMN_2_NAME)
+                self.store_in_config(self.CONFIG_KEY_COL_3_NAME, self.COLUMN_3_NAME)
+                self.recreate_main_window()
+
         self.store_in_config(self.CONFIG_KEY_HIDE_DATE, not self.show_date)
         self.store_in_config(self.CONFIG_KEY_HIDE_PRIORITY, not self.show_priority)
         self.store_in_config(self.CONFIG_KEY_HIDE_SUBJECT, not self.show_content)
@@ -589,6 +685,9 @@ class KanbanTxtViewer:
         self.store_in_config(self.CONFIG_KEY_HIDE_PROJECT, not self.show_project)
         self.store_in_config(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA, not self.show_special_kv_data)
         self.store_in_config(self.CONFIG_KEY_SORT_METHOD, self.sort_method_idx)
+
+        self.store_in_config(self.CONFIG_KEY_FONT_SIZE, self.card_font_size)
+
         self.save_config_file()
 
         self.reload_ui_from_text()
@@ -695,9 +794,9 @@ class KanbanTxtViewer:
 
         # MEMO
         cheat_sheet = tk.Label(edition_frame, text='------ Memo ------\n'
-            'x \t\t—  done\n'
-            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  {self.COLUMN_NAME_IN_PROGRESS}\n'
-            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_NAME_VALIDATION}\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  {self.COLUMN_1_NAME}\n'
+            f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_2_NAME}\n'
+            f'x \t\t—  {self.COLUMN_3_NAME}\n'
             'F5,  Ctrl + s \t—  refresh and save\n'
             'Alt + ↑ / ↓ \t—  move line up / down\n'
             'Alt + v \t\t—  customize view\n'
@@ -796,7 +895,7 @@ class KanbanTxtViewer:
         )
         self.text_editor.pack(side="top", fill="both", expand=1, padx=10, pady=10)
         self.text_editor.tag_configure('pair', background=self.COLORS['done-card-background'])
-        self.text_editor.tag_configure('current_pos', foreground='black', background=self.COLORS['project'], selectbackground=self.COLORS[f"{self.COLUMN_NAME_TODO}"])
+        self.text_editor.tag_configure('current_pos', foreground='black', background=self.COLORS['project'], selectbackground=self.COLORS["column0"])
         self.text_editor.tag_configure('insert', background='red')
 
         # EDITOR TOOLBAR
@@ -807,9 +906,9 @@ class KanbanTxtViewer:
         self.create_button(
             editor_toolbar, 
             '✅→⚫', 
-            self.COLORS[self.COLUMN_NAME_TODO], 
+            self.COLORS["column0"], 
             command=self.move_to_todo,
-            tooltip=f"Move task to {self.COLUMN_NAME_TODO}"
+            tooltip=f"Move task to {self.COLUMN_0_NAME}"
         ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
 
         # Cycle through priorities
@@ -825,27 +924,27 @@ class KanbanTxtViewer:
         self.create_button(
             editor_toolbar,
             '✅→⚫',
-            self.COLORS[self.COLUMN_NAME_IN_PROGRESS],
+            self.COLORS["column1"],
             command=self.move_to_in_progress,
-            tooltip=f"Move task to {self.COLUMN_NAME_IN_PROGRESS}"
+            tooltip=f"Move task to {self.COLUMN_1_NAME}"
         ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
 
         # Move to Validation
         self.create_button(
             editor_toolbar,
             '✅→⚫',
-            self.COLORS[self.COLUMN_NAME_VALIDATION],
+            self.COLORS["column2"],
             command=self.move_to_validation,
-            tooltip=f"Move task to {self.COLUMN_NAME_VALIDATION}"
+            tooltip=f"Move task to {self.COLUMN_2_NAME}"
         ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
 
         # Move to Done
         self.create_button(
             editor_toolbar,
             '✅→⚫',
-            self.COLORS[self.COLUMN_NAME_DONE],
+            self.COLORS["column3"],
             command=self.move_to_done,
-            tooltip=f"Move task to {self.COLUMN_NAME_DONE}"
+            tooltip=f"Move task to {self.COLUMN_3_NAME}"
         ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
 
         # Set prios A..E
@@ -1023,8 +1122,8 @@ class KanbanTxtViewer:
         self.kanban_frame.pack(fill='both')
 
         # Create each column and its associated progress bar
-        for key, column in self.ui_columns.items():
-            column_color = self.COLORS[key + '-column']
+        for idx, (key, column) in enumerate(self.ui_columns.items()):
+            column_color = self.COLORS[f'column{idx}-column']
 
             # Create the kanban column
             ui_column = tk.Frame(self.kanban_frame, bg=column_color)
@@ -1032,20 +1131,20 @@ class KanbanTxtViewer:
                 row=1, column=column_number, padx=10, pady=0, sticky='nwe')
             self.kanban_frame.grid_columnconfigure(
                 column_number, weight=1, uniform="kanban")
-            
+
             top_border = tk.Frame(
                 ui_column, 
-                bg=self.COLORS[key], 
+                bg=self.COLORS[f'column{idx}'],
                 height=8
             )
             top_border.pack(fill='x', side="top", anchor=tk.W)
 
-            title_color = self.COLORS[key]
-            if title_color == self.COLORS[key + '-column']:
+            title_color = self.COLORS[f'column{idx}']
+            if title_color == self.COLORS[f'column{idx}-column']:
                 title_color = self.COLORS['main-background']
             label = tk.Label(
                 ui_column, 
-                text=key, 
+                text=self.COLUMNS_NAMES[idx], 
                 fg=title_color, 
                 bg=ui_column['bg'], 
                 anchor=tk.W, 
@@ -1063,7 +1162,7 @@ class KanbanTxtViewer:
             # Create the progress bar associated to the column
             self.progress_bars[key] = {}
             self.progress_bars[key]['bar'] = tk.Frame(
-                self.progress_bar, bg=self.COLORS[key])
+                self.progress_bar, bg=self.COLORS[f'column{idx}'])
             self.progress_bars[key]['bar'].place(
                 relx=sub_bar_pos, relwidth=0.25, relheight=1)
             
@@ -1191,11 +1290,11 @@ class KanbanTxtViewer:
                 subject = re.sub(project_r, "", subject)
                 subject = re.sub(context_r, "", subject)
 
-                category = self.COLUMN_NAME_TODO
+                category = self.COLUMN_0_NAME
 
                 category_map = {
-                    self.KANBAN_VAL_IN_PROGRESS: self.COLUMN_NAME_IN_PROGRESS,
-                    self.KANBAN_VAL_VALIDATION: self.COLUMN_NAME_VALIDATION,
+                    self.KANBAN_VAL_IN_PROGRESS: self.COLUMN_1_NAME,
+                    self.KANBAN_VAL_VALIDATION: self.COLUMN_2_NAME,
                 }
 
                 for i in range(0, len(special_kv_data)):
@@ -1207,7 +1306,7 @@ class KanbanTxtViewer:
                             break
 
                 if task.get("isDone"):
-                    category = self.COLUMN_NAME_DONE
+                    category = self.COLUMN_3_NAME
 
                 priority = None
                 if task.get("priority"):
@@ -1228,7 +1327,7 @@ class KanbanTxtViewer:
 
                 card_bg = self.COLORS['card-background']
                 font = 'main'
-                if category == self.COLUMN_NAME_DONE:
+                if category == self.COLUMN_3_NAME:
                     card_bg = self.COLORS['done-card-background']
                     font = 'done-task'
 
@@ -1307,16 +1406,16 @@ class KanbanTxtViewer:
 
 
     def draw_card(
-        self, 
-        parent, 
-        subject, 
-        bg, 
-        font='main', 
-        project=None, 
-        context=None, 
+        self,
+        parent,
+        subject,
+        bg,
+        font='main',
+        project=None,
+        context=None,
         start_date=None,
         end_date=None,
-        state=COLUMN_NAME_TODO,
+        state=None,
         name="",
         special_kv_data=None,
         priority=None
@@ -1333,7 +1432,7 @@ class KanbanTxtViewer:
         get_widget_name.counter = 0
 
         # Create the card frame
-        ui_card_highlight = tk.Frame(parent, bd=2, bg=self.COLORS[f'{self.COLUMN_NAME_DONE}-column'], height=200, name="highlightFrame"+name)
+        ui_card_highlight = tk.Frame(parent, bd=2, bg=self.COLORS['column1-column'], height=200, name="highlightFrame"+name)
         ui_card = tk.Frame(ui_card_highlight, bd=0, bg=bg, height=200, cursor='hand2', name=get_widget_name(name))
 
         subject_padx = 10
@@ -1666,7 +1765,9 @@ class KanbanTxtViewer:
         if self.filter is not None:
             return
         self.darkmode = not self.darkmode
+        self.recreate_main_window()
 
+    def recreate_main_window(self):
         window_geometry = self.main_window.geometry()
         window_state = self.main_window.state()
         width, height, x, y = re.split("[x+]", window_geometry)
@@ -1967,7 +2068,7 @@ class KanbanTxtViewer:
 
         if self.selected_task_card is not None:
             try:
-                self.selected_task_card.configure(background=self.COLORS[f'{self.COLUMN_NAME_DONE}-column'])
+                self.selected_task_card.configure(background=self.COLORS[f'column3-column'])
             except:
                 self.selected_task_card = None
 
