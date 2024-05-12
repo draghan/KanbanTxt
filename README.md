@@ -117,9 +117,44 @@ If a creation date is provided, KanbanTxt will display the number of days elapse
 
 You can make the task cards' font smaller or bigger by using *ctrl + scroll*.
 
+#### Sort tasks in columns
+
+You can choose different order of displaying tasks in columns. 
+
+You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by selecting sorting order of you choosing.
+
+Available orders:
+- Task priority (default):  
+    - Sort by task priority: tasks with priority (A) will be put first, then (B)... up to (Z).  
+      Tasks without set priority will be put last.  
+      Tasks within the same priority will be put in order of their definition in the txt file.
+- Reversed task priority:
+    - Sort by task reversed priority: tasks with priority (A) will be put last, before (B)... up to (Z).  
+      Tasks without set priority will be put first.  
+      Tasks within the same priority will be put in reversed order of their definition in the txt file.
+- Order in txt file:
+    - Tasks are ordered by their definition in the txt file: if a task is defined earlier in txt than the other, it will appear higher.
+- Reversed order in txt file:
+    - Tasks are ordered in reverse by their definition in the txt file: if a task is defined later in txt than the other, it will appear higher.
+- Alphabetically by subject:
+    - Tasks are ordered lexicographically by their subject.  
+      It won't include priority or other tags defined at the beginning of line in the todo.txt.
+- Alphabetically by text:
+    - Tasks are ordered lexicographically by their definition in the txt file.  
+      It WILL include priority or other tags defined at the beginning of line in the todo.txt.  
+      This is similar to sorting by priority, but the tasks without priority will be sorted alphabetically and not by their order in txt file.
+- Alphabetically by project:
+    - Tasks are ordered lexicographically by their project tags.  
+      If task has multiple project tags, they will be first sorted alphabetically.
+- Alphabetically by context:
+    - Tasks are ordered lexicographically by their context tags.  
+      If task has multiple context tags, they will be first sorted alphabetically.
+
 #### Disable task card elements
 
-You can hide unwanted elements of task cards, for example the special key-value data tags. You can do this by pressing the eye button on the top left and then selecting elements you want to hide.
+You can hide unwanted elements of task cards, for example the special key-value data tags.
+
+You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by deselecting elements you want to hide.
 
 You can disable basically every element of a task card (including its main content, which might be useful if you want to pick blindly some task to do).
 

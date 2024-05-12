@@ -28,14 +28,117 @@ from idlelib.tooltip import Hovertip
 import ctypes
 
 
+def f_sort_column_by_prio(d):
+    return d['priority'] if d['priority'] is not None else 'z'
+
+
+def f_sort_column_by_order(d):
+    return d['index']
+
+
+def f_sort_column_by_txt(d):
+    return d['raw_txt']
+
+
+def f_sort_column_by_subject(d):
+    return d['subject']
+
+
+def f_sort_column_by_tag(d, tag_name, tag_indicator):
+    if len(d[tag_name]) < 1:
+        return chr(ord('z') + 1)
+
+    project_tags_copy = []
+    for p in d[tag_name]:
+        project_tags_copy.append(p[tag_name].casefold())
+    project_tags_copy.sort()
+    s = ' '.join(project_tags_copy)
+    s = s.replace(tag_indicator, '')
+    return s
+
+
+def f_sort_column_by_project(d):
+    return f_sort_column_by_tag(d, 'project', '+')
+
+
+def f_sort_column_by_context(d):
+    return f_sort_column_by_tag(d, 'context', '@')
+
+
+SORT_METHODS = [
+    {
+        'text': "Task priority",
+        'tooltip': 'Sort by task priority:\n'
+                   'tasks with priority (A) will be put first, then (B)... up to (Z).\n'
+                   'Tasks without set priority will be put last.\n'
+                   'Tasks within the same priority will be put in order of their definition in the txt file.',
+        'f': f_sort_column_by_prio,
+        'rev': False
+    },
+    {
+        'text': "Reversed task priority",
+        'tooltip': 'Sort by task reversed priority:\n'
+                   'tasks with priority (A) will be put last, before (B)... up to (Z).\n'
+                   'Tasks without set priority will be put first.\n'
+                   'Tasks within the same priority will be put in reversed order of their definition in the txt file.',
+        'f': f_sort_column_by_prio,
+        'rev': True
+    },
+    {
+        'text': "Order in txt file",
+        'tooltip': 'Tasks are ordered by their definition in the txt file:\n'
+                   'if a task is defined earlier in txt than the other, it will appear higher.',
+        'f': f_sort_column_by_order,
+        'rev': False
+    },
+    {
+        'text': "Reversed order in txt file",
+        'tooltip': 'Tasks are ordered in reverse by their definition in the txt file:\n'
+                   'if a task is defined later in txt than the other, it will appear higher.',
+        'f': f_sort_column_by_order,
+        'rev': True
+    },
+    {
+        'text': "Alphabetically by subject",
+        'tooltip': "Tasks are ordered lexicographically by their subject.\n"
+                   "It won't include priority or other tags defined at the beginning of line in the todo.txt.",
+        'f': f_sort_column_by_subject,
+        'rev': False
+    },
+    {
+        'text': "Alphabetically by text",
+        'tooltip': "Tasks are ordered lexicographically by their definition in the txt file.\n"
+                   "It WILL include priority or other tags defined at the beginning of line in the todo.txt.\n"
+                    "This is similar to sorting by priority, but the tasks without priority will be sorted alphabetically and not by their order in txt file.",
+        'f': f_sort_column_by_txt,
+        'rev': False
+    },
+    {
+        'text': "Alphabetically by project",
+        'tooltip': "Tasks are ordered lexicographically by their project tags.\n"
+                   "If task has multiple project tags, they will be first sorted alphabetically.",
+        'f': f_sort_column_by_project,
+        'rev': False
+    },
+    {
+        'text': "Alphabetically by context",
+        'tooltip': "Tasks are ordered lexicographically by their context tags.\n"
+                   "If task has multiple context tags, they will be first sorted alphabetically.",
+        'f': f_sort_column_by_context,
+        'rev': False
+    },
+]
+
 class CustomizeViewDialog(simpledialog.Dialog):
-    def __init__(self, parent, title, out_show_project, out_show_context, out_show_special_kv_data, out_show_priority, out_show_date, out_show_content):
+    def __init__(self, parent, title, out_show_project, out_show_context, out_show_special_kv_data, out_show_priority, out_show_date, out_show_content, out_sort_method):
         self.show_project = out_show_project
         self.show_context = out_show_context
         self.show_special_kv_data = out_show_special_kv_data
         self.show_priority = out_show_priority
         self.show_date = out_show_date
         self.show_content = out_show_content
+        self.sort_method = out_sort_method
+
         super().__init__(parent, title)
 
     def create_checkbox(self, text, tooltip, variable, frame):
@@ -43,21 +146,37 @@ class CustomizeViewDialog(simpledialog.Dialog):
         Hovertip(checkbox, tooltip)
         checkbox.pack(anchor=tk.W)
 
+    def create_radiobuttion(self, text, tooltip, variable, value, frame):
+        radiobutton = tk.Radiobutton(frame, text=text, variable=variable, value=value)
+        Hovertip(radiobutton, tooltip)
+        radiobutton.pack(anchor=tk.W)
+
     def body(self, frame):
-        self.create_checkbox('Priority', 'Show priority of a task on a card', self.show_priority, frame)
-        self.create_checkbox('Date', 'Show date of a task on a card', self.show_date, frame)
-        self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame)
-        self.create_checkbox('Context', 'Show context labels of a task on a card', self.show_context, frame)
-        self.create_checkbox('Special k-v data', 'Show special k-v data labels of a task on a card', self.show_special_kv_data, frame)
-        self.create_checkbox('Main content', 'Show the main content of a task on a card', self.show_content, frame)
-        return frame
+        grid_frame = tk.Frame(frame)
+        grid_frame.pack(anchor=tk.NW, fill="both")
+
+        frame_show_hide = tk.LabelFrame(grid_frame, text="Show/hide task cards' elements: ")
+        frame_show_hide.grid(row=0, column=0, padx=10, pady=10, sticky=tk.NW)
+        self.create_checkbox('Priority', 'Show priority of a task on a card', self.show_priority, frame_show_hide)
+        self.create_checkbox('Date', 'Show date of a task on a card', self.show_date, frame_show_hide)
+        self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame_show_hide)
+        self.create_checkbox('Context', 'Show context labels of a task on a card', self.show_context, frame_show_hide)
+        self.create_checkbox('Special k-v data', 'Show special k-v data labels of a task on a card', self.show_special_kv_data, frame_show_hide)
+        self.create_checkbox('Subject', 'Show the main content of a task on a card', self.show_content, frame_show_hide)
+
+        frame_sorting = tk.LabelFrame(grid_frame, text="Sort tasks in columns by: ")
+        frame_sorting.grid(row=0, column=1, padx=10, pady=10, sticky=tk.NW)
+        for i in range(len(SORT_METHODS)):
+            m = SORT_METHODS[i]
+            self.create_radiobuttion(m['text'], m['tooltip'], self.sort_method, i, frame_sorting)
+        return frame_show_hide
 
     def exit(self):
         self.destroy()
 
     def buttonbox(self):
         ok_button = tk.Button(self, text='OK', width=5, command=self.exit)
-        ok_button.pack(side='right')
+        ok_button.pack(side='right', padx=15, pady=(0, 10))
         self.bind("<Escape>", lambda event: self.exit())
         self.bind("<Return>", lambda event: self.exit())
 
@@ -153,6 +272,8 @@ class KanbanTxtViewer:
         self.show_date = True
         self.show_content = True
 
+        self.sort_method_idx = 0
+
         self.filter_view_message = None
         self.editor_warning_tooltip = None
         self.widgets_for_disable_in_filter_mode = []
@@ -200,6 +321,7 @@ class KanbanTxtViewer:
         self.main_window.bind('<Control-f>', self.activate_search_input)
         self.main_window.bind('<Escape>', self.deactivate_search_input)
         self.main_window.bind('<Control-MouseWheel>', self.on_control_scroll)
+        self.main_window.bind('<Alt-v>', self.on_customize_view_button)
 
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
@@ -403,22 +525,24 @@ class KanbanTxtViewer:
         self.drop_areas.clear()
         self.clear_drop_areas_frame()
 
-    def on_show_button(self, event=None):
+    def on_customize_view_button(self, event=None):
         show_project_var = tk.IntVar(value=self.show_project)
         show_context_var = tk.IntVar(value=self.show_context)
         show_special_kv_data_var = tk.IntVar(value=self.show_special_kv_data)
         show_priority_var = tk.IntVar(value=self.show_priority)
         show_date_var = tk.IntVar(value=self.show_date)
         show_content_var = tk.IntVar(value=self.show_content)
+        out_sort_method = tk.StringVar(value=self.sort_method_idx)
 
-        CustomizeViewDialog(title="Customize",
+        CustomizeViewDialog(title="Customize view",
                             parent=self.main_window,
                             out_show_date=show_date_var,
                             out_show_priority=show_priority_var,
                             out_show_content=show_content_var,
                             out_show_context=show_context_var,
                             out_show_project=show_project_var,
-                            out_show_special_kv_data=show_special_kv_data_var)
+                            out_show_special_kv_data=show_special_kv_data_var,
+                            out_sort_method=out_sort_method)
 
         self.show_date = show_date_var.get()
         self.show_priority = show_priority_var.get()
@@ -426,6 +550,7 @@ class KanbanTxtViewer:
         self.show_context = show_context_var.get()
         self.show_project = show_project_var.get()
         self.show_special_kv_data = show_special_kv_data_var.get()
+        self.sort_method_idx = int(out_sort_method.get())
 
         self.reload_ui_from_text()
 
@@ -496,11 +621,11 @@ class KanbanTxtViewer:
 
         show_hide_button = self.create_button(editor_header,
                                               "👁",
-                                              command=self.on_show_button,
+                                              command=self.on_customize_view_button,
                                               bordersize=2,
                                               color=self.COLORS['button'],
                                               activetextcolor=self.COLORS['main-background'],
-                                              tooltip="Select elements of task cards to be shown or hidden")
+                                              tooltip="Customize view")
         show_hide_button.pack(side="left", padx=(10,0), pady=10, anchor=tk.NE)
         #END HEADER
 
@@ -514,8 +639,9 @@ class KanbanTxtViewer:
             f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_NAME_VALIDATION}\n'
             'F5,  Ctrl + s \t—  refresh and save\n'
             'Alt + ↑ / ↓ \t—  move line up / down\n'
+            'Alt + v \t\t—  customize view\n'
             'Ctrl + f \t\t—  filter tasks\n'
-            'ESC \t\t—  close filter view\n',
+            'ESC \t\t—  close filter/customize view\n',
             bg=self.COLORS['editor-background'],
             anchor=tk.NW,
             justify='left',
@@ -974,25 +1100,25 @@ class KanbanTxtViewer:
         todo_list = p_todo_txt.split("\n")
 
         cards_data = []
-        for index, task in enumerate(todo_list):
-            if len(task) != 0:
+        for index, task_txt in enumerate(todo_list):
+            if len(task_txt) != 0:
                 task_data = re.match(
                     r'^(?P<isDone>x )? '
                     r'?(?P<priority>\([A-Z]\))? '
                     r'?(?P<dates>\d\d\d\d-\d\d-\d\d( \d\d\d\d-\d\d-\d\d)?)? '
                     r'?(?P<subject>.+)',
-                    task)
+                    task_txt)
 
                 # special key-vals, context or project tags may occur basically everywhere in the line,
                 # so don't try to fit it into the structured regex above, just make a new search
                 special_kv_r = re.compile(r'(?P<key>[^:\s]+):(?P<val>[^:\s]+)')
-                special_kv_data = [m.groupdict() for m in special_kv_r.finditer(task)]
+                special_kv_data = [m.groupdict() for m in special_kv_r.finditer(task_txt)]
 
                 project_r = re.compile(r' (?P<project>\+\S+)')
-                project_data = [m.groupdict() for m in project_r.finditer(task)]
+                project_data = [m.groupdict() for m in project_r.finditer(task_txt)]
 
                 context_r = re.compile(r' (?P<context>@\S+)')
-                context_data = [m.groupdict() for m in context_r.finditer(task)]
+                context_data = [m.groupdict() for m in context_r.finditer(task_txt)]
 
                 task = task_data.groupdict()
                 task['is_important'] = False
@@ -1059,10 +1185,13 @@ class KanbanTxtViewer:
                     'state': category,
                     'name': "task#" + str(index + 1),
                     'special_kv_data': special_kv_data,
-                    'priority': priority
+                    'priority': priority,
+                    'index': index,
+                    'raw_txt': task_txt
                 })
 
-        cards_data.sort(key=lambda d: d['priority'] if d['priority'] is not None else 'z')
+        sort_method = SORT_METHODS[self.sort_method_idx]
+        cards_data.sort(key=sort_method['f'], reverse=sort_method['rev'])
         for card in cards_data:
             self.draw_card(
                 card['parent'],
