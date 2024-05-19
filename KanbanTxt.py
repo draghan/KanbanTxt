@@ -1363,6 +1363,9 @@ class KanbanTxtViewer:
         sort_method = SORT_METHODS[self.sort_method_idx]
         cards_data.sort(key=sort_method['f'], reverse=sort_method['rev'])
         for card in cards_data:
+            index = card['index']
+            if self.filter is not None:
+                index = self.non_filtered_content_line_mapping[index]
             self.draw_card(
                 card['parent'],
                 card['subject'],
@@ -1376,7 +1379,7 @@ class KanbanTxtViewer:
                 name=card['name'],
                 special_kv_data=card['special_kv_data'],
                 priority=card['priority'],
-                index=card['index'],
+                index=index,
             )
 
         # Compute proportion for each column tasks and update progress bars
