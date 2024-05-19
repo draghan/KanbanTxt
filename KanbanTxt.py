@@ -135,6 +135,7 @@ class CustomizeViewDialog(simpledialog.Dialog):
                  out_show_project,
                  out_show_context,
                  out_show_special_kv_data,
+                 out_show_index,
                  out_show_priority,
                  out_show_date,
                  out_show_content,
@@ -147,6 +148,7 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.show_project = out_show_project
         self.show_context = out_show_context
         self.show_special_kv_data = out_show_special_kv_data
+        self.show_index = out_show_index
         self.show_priority = out_show_priority
         self.show_date = out_show_date
         self.show_content = out_show_content
@@ -200,12 +202,13 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame_show_hide)
         self.create_checkbox('Context', 'Show context labels of a task on a card', self.show_context, frame_show_hide)
         self.create_checkbox('Special k-v data', 'Show special k-v data labels of a task on a card', self.show_special_kv_data, frame_show_hide)
+        self.create_checkbox('Index', 'Show line index of a task on a card', self.show_index, frame_show_hide)
         self.create_checkbox('Subject', 'Show the main content of a task on a card', self.show_content, frame_show_hide)
 
         frame_fontsize = tk.LabelFrame(grid_frame, text="Font size: ")
         frame_fontsize.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
         fontsize_spinbox = tk.Spinbox(frame_fontsize, from_=4, to=100, textvariable=self.font_size, wrap=True)
-        fontsize_spinbox.pack(anchor=tk.W)
+        fontsize_spinbox.pack(anchor=tk.W, padx=10, pady=10)
 
 
     def exit(self):
@@ -297,6 +300,7 @@ class KanbanTxtViewer:
     CONFIG_KEY_HIDE_PROJECT = 'card_hide_project'
     CONFIG_KEY_HIDE_CONTEXT = 'card_hide_context'
     CONFIG_KEY_HIDE_SPECIAL_KV_DATA = 'card_hide_special_kv_data'
+    CONFIG_KEY_HIDE_INDEX = 'card_hide_index'
     CONFIG_KEY_HIDE_PRIORITY = 'card_hide_priority'
     CONFIG_KEY_HIDE_DATE = 'card_hide_date'
     CONFIG_KEY_HIDE_SUBJECT = 'card_hide_subject'
@@ -312,6 +316,7 @@ class KanbanTxtViewer:
         CONFIG_KEY_HIDE_PROJECT: False,
         CONFIG_KEY_HIDE_CONTEXT: False,
         CONFIG_KEY_HIDE_SPECIAL_KV_DATA: False,
+        CONFIG_KEY_HIDE_INDEX: False,
         CONFIG_KEY_HIDE_PRIORITY: False,
         CONFIG_KEY_HIDE_DATE: False,
         CONFIG_KEY_HIDE_SUBJECT: False,
@@ -346,6 +351,7 @@ class KanbanTxtViewer:
         self.show_project = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PROJECT)
         self.show_context = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_CONTEXT)
         self.show_special_kv_data = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA)
+        self.show_index = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_INDEX)
         self.show_priority = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PRIORITY)
         self.show_date = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_DATE)
         self.show_content = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SUBJECT)
@@ -609,6 +615,7 @@ class KanbanTxtViewer:
         show_project_var = tk.IntVar(value=self.show_project)
         show_context_var = tk.IntVar(value=self.show_context)
         show_special_kv_data_var = tk.IntVar(value=self.show_special_kv_data)
+        show_index = tk.IntVar(value=self.show_index)
         show_priority_var = tk.IntVar(value=self.show_priority)
         show_date_var = tk.IntVar(value=self.show_date)
         show_content_var = tk.IntVar(value=self.show_content)
@@ -629,6 +636,7 @@ class KanbanTxtViewer:
                             out_show_context=show_context_var,
                             out_show_project=show_project_var,
                             out_show_special_kv_data=show_special_kv_data_var,
+                            out_show_index=show_index,
                             out_sort_method=out_sort_method,
                             out_fontsize=out_fontsize,
                             out_col0_name=out_col0_name,
@@ -642,6 +650,7 @@ class KanbanTxtViewer:
         self.show_context = show_context_var.get()
         self.show_project = show_project_var.get()
         self.show_special_kv_data = show_special_kv_data_var.get()
+        self.show_index = show_index.get()
         self.sort_method_idx = int(out_sort_method.get())
 
         self.card_font_size = int(out_fontsize.get())
@@ -684,6 +693,7 @@ class KanbanTxtViewer:
         self.store_in_config(self.CONFIG_KEY_HIDE_CONTEXT, not self.show_context)
         self.store_in_config(self.CONFIG_KEY_HIDE_PROJECT, not self.show_project)
         self.store_in_config(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA, not self.show_special_kv_data)
+        self.store_in_config(self.CONFIG_KEY_HIDE_INDEX, not self.show_index)
         self.store_in_config(self.CONFIG_KEY_SORT_METHOD, self.sort_method_idx)
 
         self.store_in_config(self.CONFIG_KEY_FONT_SIZE, self.card_font_size)
@@ -1365,7 +1375,8 @@ class KanbanTxtViewer:
                 state=card['state'],
                 name=card['name'],
                 special_kv_data=card['special_kv_data'],
-                priority=card['priority']
+                priority=card['priority'],
+                index=card['index'],
             )
 
         # Compute proportion for each column tasks and update progress bars
@@ -1418,7 +1429,8 @@ class KanbanTxtViewer:
         state=None,
         name="",
         special_kv_data=None,
-        priority=None
+        priority=None,
+        index=None
     ):
         def bind_highlight_and_drag_n_drop(widget):
             widget.bind('<Button-1>', self.on_click)
@@ -1543,6 +1555,22 @@ class KanbanTxtViewer:
             )
             special_kv_entry_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(special_kv_entry_label)
+
+        if index is not None and self.show_index:
+            index_string = f"#{index}"
+            index_va = tk.StringVar(value=index_string)
+            index_label = tk.Entry(
+                ui_card,
+                fg=self.COLORS['kv-data'],
+                bg=ui_card['bg'],
+                name=get_widget_name(name),
+                font=("Arial", self.card_font_size - 2),
+                textvariable=index_va,
+                borderwidth=0,
+                state="readonly",
+                readonlybackground=ui_card['bg'],
+            )
+            index_label.pack(padx=0, pady=2, side="top", anchor=tk.W)
 
         ui_card.pack(padx=1, pady=(0, 10), side="top", fill='x', expand=1, anchor=tk.NW)
         ui_card_highlight.pack(padx=0, pady=(0, 1), side="top", fill='x', expand=1, anchor=tk.NW)
