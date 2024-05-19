@@ -144,7 +144,10 @@ class CustomizeViewDialog(simpledialog.Dialog):
                  out_col1_name,
                  out_col2_name,
                  out_col3_name,
-                 out_fontsize):
+                 out_fontsize,
+                 out_ask_for_add,
+                 out_ask_for_delete,
+                 ):
         self.show_project = out_show_project
         self.show_context = out_show_context
         self.show_special_kv_data = out_show_special_kv_data
@@ -153,6 +156,8 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.show_date = out_show_date
         self.show_content = out_show_content
         self.sort_method = out_sort_method
+        self.ask_for_add = out_ask_for_add
+        self.ask_for_delete = out_ask_for_delete
         self.col_names = [
             out_col0_name,
             out_col1_name,
@@ -205,11 +210,18 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.create_checkbox('Index', 'Show line index of a task on a card', self.show_index, frame_show_hide)
         self.create_checkbox('Subject', 'Show the main content of a task on a card', self.show_content, frame_show_hide)
 
-        frame_fontsize = tk.LabelFrame(grid_frame, text="Font size: ")
-        frame_fontsize.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
+        third_frame = tk.Frame(grid_frame)
+        third_frame.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
+
+        frame_fontsize = tk.LabelFrame(third_frame, text="Font size: ")
+        frame_fontsize.pack(padx=10, pady=10)
         fontsize_spinbox = tk.Spinbox(frame_fontsize, from_=4, to=100, textvariable=self.font_size, wrap=True)
         fontsize_spinbox.pack(anchor=tk.W, padx=10, pady=10)
 
+        frame_ask_for = tk.LabelFrame(third_frame, text="Ask for confirmation, when: ")
+        frame_ask_for.pack()
+        self.create_checkbox("Adding new task", "", self.ask_for_add, frame_ask_for)
+        self.create_checkbox("Removing a task", "", self.ask_for_delete, frame_ask_for)
 
     def exit(self):
         string_col_names = [x.get() for x in self.col_names]
@@ -305,6 +317,8 @@ class KanbanTxtViewer:
     CONFIG_KEY_HIDE_DATE = 'card_hide_date'
     CONFIG_KEY_HIDE_SUBJECT = 'card_hide_subject'
     CONFIG_KEY_SORT_METHOD = 'sort_method'
+    CONFIG_KEY_ASK_FOR_ADD = 'ask_for_new_task'
+    CONFIG_KEY_ASK_FOR_DELETE = 'ask_for_delete'
     CONFIG_KEY_DARKMODE = 'darkmode'
     CONFIG_KEY_COL_0_NAME = 'column_0'
     CONFIG_KEY_COL_1_NAME = 'column_1'
@@ -312,6 +326,8 @@ class KanbanTxtViewer:
     CONFIG_KEY_COL_3_NAME = 'column_3'
 
     CONFIG_DEFAULTS = {
+        CONFIG_KEY_ASK_FOR_ADD: True,
+        CONFIG_KEY_ASK_FOR_DELETE: True,
         CONFIG_KEY_FONT_SIZE: 10,
         CONFIG_KEY_HIDE_PROJECT: False,
         CONFIG_KEY_HIDE_CONTEXT: False,
@@ -355,6 +371,9 @@ class KanbanTxtViewer:
         self.show_priority = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PRIORITY)
         self.show_date = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_DATE)
         self.show_content = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SUBJECT)
+
+        self.ask_for_add = self.get_value_from_config_or_default(self.CONFIG_KEY_ASK_FOR_ADD)
+        self.ask_for_delete = self.get_value_from_config_or_default(self.CONFIG_KEY_ASK_FOR_DELETE)
 
         self.sort_method_idx = self.get_value_from_config_or_default(self.CONFIG_KEY_SORT_METHOD)
 
@@ -619,6 +638,10 @@ class KanbanTxtViewer:
         show_priority_var = tk.IntVar(value=self.show_priority)
         show_date_var = tk.IntVar(value=self.show_date)
         show_content_var = tk.IntVar(value=self.show_content)
+
+        ask_for_add_var = tk.IntVar(value=self.ask_for_add)
+        ask_for_delete_var = tk.IntVar(value=self.ask_for_delete)
+
         out_sort_method = tk.StringVar(value=self.sort_method_idx)
 
         out_fontsize = tk.StringVar(value=self.card_font_size)
@@ -642,7 +665,10 @@ class KanbanTxtViewer:
                             out_col0_name=out_col0_name,
                             out_col1_name=out_col1_name,
                             out_col2_name=out_col2_name,
-                            out_col3_name=out_col3_name)
+                            out_col3_name=out_col3_name,
+                            out_ask_for_add=ask_for_add_var,
+                            out_ask_for_delete=ask_for_delete_var,
+                            )
 
         self.show_date = show_date_var.get()
         self.show_priority = show_priority_var.get()
@@ -651,6 +677,10 @@ class KanbanTxtViewer:
         self.show_project = show_project_var.get()
         self.show_special_kv_data = show_special_kv_data_var.get()
         self.show_index = show_index.get()
+
+        self.ask_for_delete = ask_for_delete_var.get()
+        self.ask_for_add = ask_for_add_var.get()
+
         self.sort_method_idx = int(out_sort_method.get())
 
         self.card_font_size = int(out_fontsize.get())
@@ -694,6 +724,10 @@ class KanbanTxtViewer:
         self.store_in_config(self.CONFIG_KEY_HIDE_PROJECT, not self.show_project)
         self.store_in_config(self.CONFIG_KEY_HIDE_SPECIAL_KV_DATA, not self.show_special_kv_data)
         self.store_in_config(self.CONFIG_KEY_HIDE_INDEX, not self.show_index)
+
+        self.store_in_config(self.CONFIG_KEY_ASK_FOR_ADD, self.ask_for_add)
+        self.store_in_config(self.CONFIG_KEY_ASK_FOR_DELETE, self.ask_for_delete)
+
         self.store_in_config(self.CONFIG_KEY_SORT_METHOD, self.sort_method_idx)
 
         self.store_in_config(self.CONFIG_KEY_FONT_SIZE, self.card_font_size)
@@ -2008,8 +2042,17 @@ class KanbanTxtViewer:
                     allow_delete = False
         return not allow_delete
 
+    def show_task_deletion_warning(self):
+        return tk.messagebox.askyesno(default=tk.messagebox.NO, title="Deleting task", message="You are about to delete a task.\n"
+                                                                                               "This will make an impact on the tasks IDs.\n\n"
+                                                                                               "Do you want to proceed with removal?")
+
     def on_backspace_pressed(self, event=None):
         if self.filter is None:
+            if self.ask_for_delete and self.is_deletion_forbidden(is_removing_rhs=False):
+                response = self.show_task_deletion_warning()
+                if response == False:
+                    return "break"
             self.schedule_update_of_editor_line_colors(event)
             return
         if self.is_deletion_forbidden(is_removing_rhs=False):
@@ -2017,19 +2060,26 @@ class KanbanTxtViewer:
             return "break"
 
     def on_whitespace_pressed(self, event=None):
-        if self.filter is None:
-            return
         # don't allow to replace the whole line with whitespace in filter view
         if self.text_editor.tag_ranges(tk.SEL):
             text_left_begin = self.text_editor.get("insert linestart", tk.SEL_FIRST)
             text_left_end = self.text_editor.get(tk.SEL_LAST, "insert lineend")
             text_combined = text_left_begin + text_left_end
             if len(text_combined.strip()) == 0:
-                self.flash_editor_warning_tooltip("Can't remove tasks when the filter view is active!")
-                return "break"
+                if self.filter is not None:
+                    self.flash_editor_warning_tooltip("Can't remove tasks when the filter view is active!")
+                    return "break"
+                elif self.ask_for_delete:
+                    response = self.show_task_deletion_warning()
+                    if response == False:
+                        return "break"
 
     def on_delete_pressed(self, event=None):
         if self.filter is None:
+            if self.ask_for_delete and self.is_deletion_forbidden(is_removing_rhs=True):
+                response = self.show_task_deletion_warning()
+                if response == False:
+                    return "break"
             self.schedule_update_of_editor_line_colors(event)
             return
 
@@ -2038,11 +2088,27 @@ class KanbanTxtViewer:
             return "break"
 
     def on_return_pressed(self, event=None):
+        cursor_pos = self.text_editor.index(tk.INSERT)
+
         if self.filter is None:
+            if self.ask_for_add:
+                end_pos = self.text_editor.index(tk.END)
+                cursor_line = int(cursor_pos.split('.')[0])
+                end_line = int(end_pos.split('.')[0])
+                response = False
+                if cursor_line != end_line - 1:
+                    response = tk.messagebox.askyesnocancel(title="Add new task", message="You are creating new task in the middle of the txt file.\n"
+                                                                                          "This will make an impact on the tasks IDs.\n\n"
+                                                                                          "Do you want to add it at the end [Yes] or at the current cursor position [No]?")
+                if response is None:  # cancel
+                    return "break"
+                elif response is False:  # do not move, stay here
+                    pass
+                elif response is True:  # move to the end
+                    self.text_editor.mark_set(tk.INSERT, tk.END)
             self.main_window.after(100, self.reload_and_save)
             return
 
-        cursor_pos = self.text_editor.index(tk.INSERT)
         self.reload_ui_from_text()
         self.text_editor.mark_set('insert', cursor_pos)
         self.text_editor.see('insert')
