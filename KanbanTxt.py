@@ -1560,6 +1560,8 @@ class KanbanTxtViewer:
                 anchor=tk.E,
                 name=get_widget_name(name),
                 font=("Arial", self.card_font_size - 2),
+                wraplength=200,
+                justify='left',
             )
             project_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(project_label)
@@ -1574,6 +1576,8 @@ class KanbanTxtViewer:
                 anchor=tk.E,
                 name=get_widget_name(name),
                 font=("Arial", self.card_font_size - 2),
+                wraplength=200,
+                justify='left',
             )
             context_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(context_label)
@@ -1589,6 +1593,8 @@ class KanbanTxtViewer:
                 anchor=tk.E,
                 name=get_widget_name(name),
                 font=("Arial", self.card_font_size - 2),
+                wraplength=200,
+                justify='left',
             )
             special_kv_entry_label.pack(padx=10, pady=2, fill='x', side="top", anchor=tk.E)
             bind_highlight_and_drag_n_drop(special_kv_entry_label)
