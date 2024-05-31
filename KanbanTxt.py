@@ -147,6 +147,12 @@ class CustomizeViewDialog(simpledialog.Dialog):
                  out_fontsize,
                  out_ask_for_add,
                  out_ask_for_delete,
+                 out_hide_memo,
+                 out_hide_button_delete,
+                 out_hide_button_add_date,
+                 out_hide_buttons_assign_priority,
+                 out_hide_buttons_move_to_column,
+                 out_hide_buttons_move_line_up_down,
                  ):
         self.show_project = out_show_project
         self.show_context = out_show_context
@@ -165,6 +171,12 @@ class CustomizeViewDialog(simpledialog.Dialog):
             out_col3_name,
         ]
         self.font_size = out_fontsize
+        self.hide_memo = out_hide_memo
+        self.hide_button_delete = out_hide_button_delete
+        self.hide_button_add_date = out_hide_button_add_date
+        self.hide_buttons_assign_priority = out_hide_buttons_assign_priority
+        self.hide_buttons_move_to_column = out_hide_buttons_move_to_column
+        self.hide_buttons_move_line_up_down = out_hide_buttons_move_line_up_down
         super().__init__(parent, title)
 
     def create_checkbox(self, text, tooltip, variable, frame):
@@ -194,14 +206,18 @@ class CustomizeViewDialog(simpledialog.Dialog):
             self.create_text_entry(f"Name of column {i}.", v, frame_colnames, row=row, col=i)
 
         row = 1
-        frame_sorting = tk.LabelFrame(grid_frame, text="Sort tasks in columns by: ")
-        frame_sorting.grid(row=row, column=0, padx=10, pady=10, sticky=tk.NW)
+        first_column_frame = tk.Frame(grid_frame)
+        first_column_frame.grid(row=row, column=0, padx=10, pady=10, sticky=tk.NW)
+        frame_sorting = tk.LabelFrame(first_column_frame, text="Sort tasks in columns by: ")
+        frame_sorting.pack()
         for i in range(len(SORT_METHODS)):
             m = SORT_METHODS[i]
             self.create_radiobuttion(m['text'], m['tooltip'], self.sort_method, i, frame_sorting)
 
-        frame_show_hide = tk.LabelFrame(grid_frame, text="Show/hide task cards' elements: ")
-        frame_show_hide.grid(row=row, column=1, padx=10, pady=10, sticky=tk.NW)
+        second_column_frame = tk.Frame(grid_frame)
+        second_column_frame.grid(row=row, column=1, padx=10, pady=10, sticky=tk.NW)
+        frame_show_hide = tk.LabelFrame(second_column_frame, text="Show/hide task cards' elements: ")
+        frame_show_hide.pack()
         self.create_checkbox('Priority', 'Show priority of a task on a card', self.show_priority, frame_show_hide)
         self.create_checkbox('Date', 'Show date of a task on a card', self.show_date, frame_show_hide)
         self.create_checkbox('Project', 'Show project labels of a task on a card', self.show_project, frame_show_hide)
@@ -210,16 +226,25 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.create_checkbox('Index', 'Show line index of a task on a card', self.show_index, frame_show_hide)
         self.create_checkbox('Subject', 'Show the main content of a task on a card', self.show_content, frame_show_hide)
 
-        third_frame = tk.Frame(grid_frame)
-        third_frame.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
-
-        frame_fontsize = tk.LabelFrame(third_frame, text="Font size: ")
-        frame_fontsize.pack(padx=10, pady=10)
+        frame_fontsize = tk.LabelFrame(second_column_frame, text="Font size: ")
+        frame_fontsize.pack(fill='x', pady=10)
         fontsize_spinbox = tk.Spinbox(frame_fontsize, from_=4, to=100, textvariable=self.font_size, wrap=True)
-        fontsize_spinbox.pack(anchor=tk.W, padx=10, pady=10)
+        fontsize_spinbox.pack(anchor=tk.W, padx=10, pady=10, fill='x')
 
-        frame_ask_for = tk.LabelFrame(third_frame, text="Ask for confirmation, when: ")
-        frame_ask_for.pack()
+        third_column_frame = tk.Frame(grid_frame)
+        third_column_frame.grid(row=row, column=2, padx=10, pady=10, sticky=tk.NW)
+
+        frame_hide_editor_elements = tk.LabelFrame(third_column_frame, text="Show editor widgets: ")
+        frame_hide_editor_elements.pack()
+        self.create_checkbox("Memo", "", self.hide_memo, frame_hide_editor_elements)
+        self.create_checkbox("Buttons 'Move to column'", "", self.hide_buttons_move_to_column, frame_hide_editor_elements)
+        self.create_checkbox("Button 'Add date'", "", self.hide_button_add_date, frame_hide_editor_elements)
+        self.create_checkbox("Button 'Delete'", "", self.hide_button_delete, frame_hide_editor_elements)
+        self.create_checkbox("Buttons 'Move line up/down'", "", self.hide_buttons_move_line_up_down, frame_hide_editor_elements)
+        self.create_checkbox("Buttons 'Assign priority'", "", self.hide_buttons_assign_priority, frame_hide_editor_elements)
+ 
+        frame_ask_for = tk.LabelFrame(third_column_frame, text="Ask for confirmation, when: ")
+        frame_ask_for.pack(fill='x', pady=(10, 0))
         self.create_checkbox("Adding new task", "", self.ask_for_add, frame_ask_for)
         self.create_checkbox("Removing a task", "", self.ask_for_delete, frame_ask_for)
 
@@ -319,6 +344,12 @@ class KanbanTxtViewer:
     CONFIG_KEY_SORT_METHOD = 'sort_method'
     CONFIG_KEY_ASK_FOR_ADD = 'ask_for_new_task'
     CONFIG_KEY_ASK_FOR_DELETE = 'ask_for_delete'
+    CONFIG_KEY_HIDE_MEMO = 'hide_memo'
+    CONFIG_KEY_HIDE_BUTTONS_MOVE_TO_COLUMN = 'hide_buttons_move_to_column'
+    CONFIG_KEY_HIDE_BUTTONS_ASSIGN_PRIORITY = 'hide_buttons_assign_priority'
+    CONFIG_KEY_HIDE_BUTTONS_MOVE_LINE_UP_DOWN = 'hide_buttons_move_line_up_down'
+    CONFIG_KEY_HIDE_BUTTON_ADD_DATE = 'hide_button_add_date'
+    CONFIG_KEY_HIDE_BUTTON_DELETE = 'hide_button_delete'
     CONFIG_KEY_DARKMODE = 'darkmode'
     CONFIG_KEY_COL_0_NAME = 'column_0'
     CONFIG_KEY_COL_1_NAME = 'column_1'
@@ -338,6 +369,12 @@ class KanbanTxtViewer:
         CONFIG_KEY_HIDE_SUBJECT: False,
         CONFIG_KEY_SORT_METHOD: 0,
         CONFIG_KEY_DARKMODE: False,
+        CONFIG_KEY_HIDE_BUTTON_ADD_DATE: False,
+        CONFIG_KEY_HIDE_BUTTON_DELETE: False,
+        CONFIG_KEY_HIDE_BUTTONS_ASSIGN_PRIORITY: False,
+        CONFIG_KEY_HIDE_BUTTONS_MOVE_TO_COLUMN: False,
+        CONFIG_KEY_HIDE_BUTTONS_MOVE_LINE_UP_DOWN: False,
+        CONFIG_KEY_HIDE_MEMO: False,
         CONFIG_KEY_COL_0_NAME: "To Do",
         CONFIG_KEY_COL_1_NAME: "In progress",
         CONFIG_KEY_COL_2_NAME: "Validation",
@@ -371,6 +408,13 @@ class KanbanTxtViewer:
         self.show_priority = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_PRIORITY)
         self.show_date = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_DATE)
         self.show_content = not self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_SUBJECT)
+
+        self.hide_memo = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_MEMO)
+        self.hide_button_delete = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_BUTTON_DELETE)
+        self.hide_button_add_date = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_BUTTON_ADD_DATE)
+        self.hide_buttons_assign_priority = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_BUTTONS_ASSIGN_PRIORITY)
+        self.hide_buttons_move_to_column = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_BUTTONS_MOVE_TO_COLUMN)
+        self.hide_buttons_move_line_up_down = self.get_value_from_config_or_default(self.CONFIG_KEY_HIDE_BUTTONS_MOVE_LINE_UP_DOWN)
 
         self.ask_for_add = self.get_value_from_config_or_default(self.CONFIG_KEY_ASK_FOR_ADD)
         self.ask_for_delete = self.get_value_from_config_or_default(self.CONFIG_KEY_ASK_FOR_DELETE)
@@ -651,6 +695,13 @@ class KanbanTxtViewer:
         out_col2_name = tk.StringVar(value=self.COLUMN_2_NAME)
         out_col3_name = tk.StringVar(value=self.COLUMN_3_NAME)
 
+        hide_memo = tk.IntVar(value=not self.hide_memo)
+        hide_button_delete = tk.IntVar(value=not self.hide_button_delete)
+        hide_button_add_date = tk.IntVar(value=not self.hide_button_add_date)
+        hide_buttons_assign_priority = tk.IntVar(value=not self.hide_buttons_assign_priority)
+        hide_buttons_move_to_column = tk.IntVar(value=not self.hide_buttons_move_to_column)
+        hide_buttons_move_line_up_down = tk.IntVar(value=not self.hide_buttons_move_line_up_down)
+
         CustomizeViewDialog(title="Customize view",
                             parent=self.main_window,
                             out_show_date=show_date_var,
@@ -668,6 +719,12 @@ class KanbanTxtViewer:
                             out_col3_name=out_col3_name,
                             out_ask_for_add=ask_for_add_var,
                             out_ask_for_delete=ask_for_delete_var,
+                            out_hide_memo=hide_memo,
+                            out_hide_button_delete=hide_button_delete,
+                            out_hide_button_add_date=hide_button_add_date,
+                            out_hide_buttons_assign_priority=hide_buttons_assign_priority,
+                            out_hide_buttons_move_to_column=hide_buttons_move_to_column,
+                            out_hide_buttons_move_line_up_down=hide_buttons_move_line_up_down,
                             )
 
         self.show_date = show_date_var.get()
@@ -685,6 +742,13 @@ class KanbanTxtViewer:
 
         self.card_font_size = int(out_fontsize.get())
 
+        self.hide_memo = not hide_memo.get()
+        self.hide_button_add_date = not hide_button_add_date.get()
+        self.hide_button_delete = not hide_button_delete.get()
+        self.hide_buttons_move_line_up_down = not hide_buttons_move_line_up_down.get()
+        self.hide_buttons_move_to_column = not hide_buttons_move_to_column.get()
+        self.hide_buttons_assign_priority = not hide_buttons_assign_priority.get()
+
         new_column_names = [
             out_col0_name.get(),
             out_col1_name.get(),
@@ -692,10 +756,9 @@ class KanbanTxtViewer:
             out_col3_name.get(),
         ]
 
-        are_new_column_names_unique = len(new_column_names) == len(set(new_column_names)) 
-
+        are_new_column_names_unique = len(new_column_names) == len(set(new_column_names))
+        has_any_column_changed = False
         if are_new_column_names_unique:
-            has_any_column_changed = False
             for i, new_name in enumerate(new_column_names):
                 old_name = self.COLUMNS_NAMES[i]
                 if old_name != new_name:
@@ -715,7 +778,6 @@ class KanbanTxtViewer:
                 self.store_in_config(self.CONFIG_KEY_COL_1_NAME, self.COLUMN_1_NAME)
                 self.store_in_config(self.CONFIG_KEY_COL_2_NAME, self.COLUMN_2_NAME)
                 self.store_in_config(self.CONFIG_KEY_COL_3_NAME, self.COLUMN_3_NAME)
-                self.recreate_main_window()
 
         self.store_in_config(self.CONFIG_KEY_HIDE_DATE, not self.show_date)
         self.store_in_config(self.CONFIG_KEY_HIDE_PRIORITY, not self.show_priority)
@@ -732,6 +794,17 @@ class KanbanTxtViewer:
 
         self.store_in_config(self.CONFIG_KEY_FONT_SIZE, self.card_font_size)
 
+        editor_widget_change_state = [
+            self.store_in_config(self.CONFIG_KEY_HIDE_MEMO, self.hide_memo),
+            self.store_in_config(self.CONFIG_KEY_HIDE_BUTTON_ADD_DATE, self.hide_button_add_date),
+            self.store_in_config(self.CONFIG_KEY_HIDE_BUTTON_DELETE, self.hide_button_delete),
+            self.store_in_config(self.CONFIG_KEY_HIDE_BUTTONS_ASSIGN_PRIORITY, self.hide_buttons_assign_priority),
+            self.store_in_config(self.CONFIG_KEY_HIDE_BUTTONS_MOVE_LINE_UP_DOWN, self.hide_buttons_move_line_up_down),
+            self.store_in_config(self.CONFIG_KEY_HIDE_BUTTONS_MOVE_TO_COLUMN, self.hide_buttons_move_to_column)
+        ]
+        has_any_editor_widget_changed = any(editor_widget_change_state)
+        if has_any_column_changed or has_any_editor_widget_changed:
+            self.recreate_main_window()
         self.save_config_file()
 
         self.reload_ui_from_text()
@@ -745,9 +818,13 @@ class KanbanTxtViewer:
         return value
 
     def store_in_config(self, key, value):
+        value_changed = True
         if self.config is None:
             self.config = {}
+        if self.config.get(key, None) == value:
+            value_changed = False
         self.config[key] = value
+        return value_changed
 
     def save_config_file(self):
         if self.config is None:
@@ -852,7 +929,8 @@ class KanbanTxtViewer:
             fg=self.COLORS['main-text'],
             font=tkFont.nametofont('main'),
         )
-        cheat_sheet.pack(side="top", fill="x", padx=10)
+        if not self.hide_memo:
+            cheat_sheet.pack(side="top", fill="x", padx=10)
         # MEMO END
 
         # Separator
@@ -947,136 +1025,145 @@ class KanbanTxtViewer:
         editor_toolbar.pack(side='top', padx=10, pady=10, fill='both')
 
         # Move to todo
-        self.create_button(
-            editor_toolbar, 
-            '✅→⚫', 
-            self.COLORS["column0"], 
-            command=self.move_to_todo,
-            tooltip=f"Move task to {self.COLUMN_0_NAME}"
-        ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
+        if not self.hide_buttons_move_to_column:
+            self.create_button(
+                editor_toolbar, 
+                '✅→⚫', 
+                self.COLORS["column0"], 
+                command=self.move_to_todo,
+                tooltip=f"Move task to {self.COLUMN_0_NAME}"
+            ).grid(row=0, sticky='ew', column=0, padx=5, pady=5)
 
         # Cycle through priorities
-        self.create_button(
-            editor_toolbar,
-            '⧉ ↻',
-            self.COLORS['priority_color_scale'][4],
-            command=self.change_priority,
-            tooltip="Change priority to higher"
-        ).grid(row=0, sticky='ew', column=4, padx=5, pady=5)
+        if not self.hide_buttons_assign_priority:
+            self.create_button(
+                editor_toolbar,
+                '⧉ ↻',
+                self.COLORS['priority_color_scale'][4],
+                command=self.change_priority,
+                tooltip="Change priority to higher"
+            ).grid(row=0, sticky='ew', column=4, padx=5, pady=5)
 
         # Move to In progress
-        self.create_button(
-            editor_toolbar,
-            '✅→⚫',
-            self.COLORS["column1"],
-            command=self.move_to_in_progress,
-            tooltip=f"Move task to {self.COLUMN_1_NAME}"
-        ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
+        if not self.hide_buttons_move_to_column:
+            self.create_button(
+                editor_toolbar,
+                '✅→⚫',
+                self.COLORS["column1"],
+                command=self.move_to_in_progress,
+                tooltip=f"Move task to {self.COLUMN_1_NAME}"
+            ).grid(row=0, sticky='ew', column=1, padx=5, pady=5)
 
         # Move to Validation
-        self.create_button(
-            editor_toolbar,
-            '✅→⚫',
-            self.COLORS["column2"],
-            command=self.move_to_validation,
-            tooltip=f"Move task to {self.COLUMN_2_NAME}"
-        ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
+        if not self.hide_buttons_move_to_column:
+            self.create_button(
+                editor_toolbar,
+                '✅→⚫',
+                self.COLORS["column2"],
+                command=self.move_to_validation,
+                tooltip=f"Move task to {self.COLUMN_2_NAME}"
+            ).grid(row=0, sticky='ew', column=2, padx=5, pady=5)
 
         # Move to Done
-        self.create_button(
-            editor_toolbar,
-            '✅→⚫',
-            self.COLORS["column3"],
-            command=self.move_to_done,
-            tooltip=f"Move task to {self.COLUMN_3_NAME}"
-        ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
+        if not self.hide_buttons_move_to_column:
+            self.create_button(
+                editor_toolbar,
+                '✅→⚫',
+                self.COLORS["column3"],
+                command=self.move_to_done,
+                tooltip=f"Move task to {self.COLUMN_3_NAME}"
+            ).grid(row=0, sticky='ew', column=3, padx=5, pady=5)
 
         # Set prios A..E
-        self.create_button(
-            editor_toolbar,
-            f'⧉ A',
-            self.COLORS['priority_color_scale'][0],
-            command=self.change_priority_to_A,
-            tooltip="Set priority to A"
-        ).grid(row=3, sticky='ew', column=0, padx=5, pady=5)
+        if not self.hide_buttons_assign_priority:
+            self.create_button(
+                editor_toolbar,
+                f'⧉ A',
+                self.COLORS['priority_color_scale'][0],
+                command=self.change_priority_to_A,
+                tooltip="Set priority to A"
+            ).grid(row=3, sticky='ew', column=0, padx=5, pady=5)
 
-        self.create_button(
-            editor_toolbar,
-            f'⧉ B',
-            self.COLORS['priority_color_scale'][1],
-            command=self.change_priority_to_B,
-            tooltip="Set priority to B"
-        ).grid(row=3, sticky='ew', column=1, padx=5, pady=5)
-
-        self.create_button(
-            editor_toolbar,
-            f'⧉ C',
-            self.COLORS['priority_color_scale'][2],
-            command=self.change_priority_to_C,
-            tooltip="Set priority to C"
-        ).grid(row=3, sticky='ew', column=2, padx=5, pady=5)
-
-        self.create_button(
-            editor_toolbar,
-            f'⧉ D',
-            self.COLORS['priority_color_scale'][3],
-            command=self.change_priority_to_D,
-            tooltip="Set priority to D"
-        ).grid(row=3, sticky='ew', column=3, padx=5, pady=5)
-
-        self.create_button(
-            editor_toolbar,
-            f'⧉ E',
-            self.COLORS['priority_color_scale'][4],
-            command=self.change_priority_to_E,
-            tooltip="Set priority to E"
-        ).grid(row=3, sticky='ew', column=4, padx=5, pady=5)
-
-        self.create_button(
-            editor_toolbar,
-            f'⧉ ☒',
-            self.COLORS['important'],
-            command=lambda: self.change_priority(None, ''),
-            tooltip="Remove priority"
-        ).grid(row=2, sticky='ew', column=4, padx=5, pady=5)
+            self.create_button(
+                editor_toolbar,
+                f'⧉ B',
+                self.COLORS['priority_color_scale'][1],
+                command=self.change_priority_to_B,
+                tooltip="Set priority to B"
+            ).grid(row=3, sticky='ew', column=1, padx=5, pady=5)
+    
+            self.create_button(
+                editor_toolbar,
+                f'⧉ C',
+                self.COLORS['priority_color_scale'][2],
+                command=self.change_priority_to_C,
+                tooltip="Set priority to C"
+            ).grid(row=3, sticky='ew', column=2, padx=5, pady=5)
+    
+            self.create_button(
+                editor_toolbar,
+                f'⧉ D',
+                self.COLORS['priority_color_scale'][3],
+                command=self.change_priority_to_D,
+                tooltip="Set priority to D"
+            ).grid(row=3, sticky='ew', column=3, padx=5, pady=5)
+    
+            self.create_button(
+                editor_toolbar,
+                f'⧉ E',
+                self.COLORS['priority_color_scale'][4],
+                command=self.change_priority_to_E,
+                tooltip="Set priority to E"
+            ).grid(row=3, sticky='ew', column=4, padx=5, pady=5)
+    
+            self.create_button(
+                editor_toolbar,
+                f'⧉ ☒',
+                self.COLORS['important'],
+                command=lambda: self.change_priority(None, ''),
+                tooltip="Remove priority"
+            ).grid(row=2, sticky='ew', column=4, padx=5, pady=5)
     
         # Add date
-        self.create_button(
-            editor_toolbar, 
-            '+ date', 
-            self.COLORS['button'], 
-            command=self.add_date
-        ).grid(row=2, sticky='ew', column=0, padx=5, pady=5)
+        if not self.hide_button_add_date:
+            self.create_button(
+                editor_toolbar, 
+                '+ date', 
+                self.COLORS['button'], 
+                command=self.add_date
+            ).grid(row=2, sticky='ew', column=0, padx=5, pady=5)
 
-        # Move line up
-        self.create_button(
-            editor_toolbar, 
-            '↑', 
-            self.COLORS['button'], 
-            command=self.move_line_up,
-            tooltip="Move line up",
-            disable_in_filter_view=True
-        ).grid(row=2, sticky='ew', column=1, padx=5, pady=5)
+        if not self.hide_buttons_move_line_up_down:
+            # Move line up
+            self.create_button(
+                editor_toolbar, 
+                '↑', 
+                self.COLORS['button'], 
+                command=self.move_line_up,
+                tooltip="Move line up",
+                disable_in_filter_view=True
+            ).grid(row=2, sticky='ew', column=1, padx=5, pady=5)
+    
+            # Move line down
+            self.create_button(
+                editor_toolbar, 
+                '↓', 
+                self.COLORS['button'], 
+                command=self.move_line_down,
+                tooltip="Move line down",
+                disable_in_filter_view=True
+            ).grid(row=2, sticky='ew', column=2, padx=5, pady=5)
 
-        # Move line down
-        self.create_button(
-            editor_toolbar, 
-            '↓', 
-            self.COLORS['button'], 
-            command=self.move_line_down,
-            tooltip="Move line down",
-            disable_in_filter_view=True
-        ).grid(row=2, sticky='ew', column=2, padx=5, pady=5)
-
-        # Delete line
-        self.create_button(
-            editor_toolbar, 
-            'Delete', 
-            self.COLORS['button'], 
-            command=self.remove_line,
-            tooltip="Remove current line",
-            disable_in_filter_view=True
-        ).grid(row=2, sticky='ew', column=3, padx=5, pady=5)
+        if not self.hide_button_delete:
+            # Delete line
+            self.create_button(
+                editor_toolbar, 
+                'Delete', 
+                self.COLORS['button'], 
+                command=self.remove_line,
+                tooltip="Remove current line",
+                disable_in_filter_view=True
+            ).grid(row=2, sticky='ew', column=3, padx=5, pady=5)
 
         editor_toolbar.columnconfigure(0, weight=1, uniform='toolbar-item')
         editor_toolbar.columnconfigure(1, weight=1, uniform='toolbar-item')
