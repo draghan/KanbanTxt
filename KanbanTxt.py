@@ -1999,9 +1999,21 @@ class KanbanTxtViewer:
     def set_editor_line_state(self, new_state):
         current_line = self.text_editor.get("insert linestart", "insert lineend")
         current_line = self.set_state(current_line, new_state)
+
+        # if edit is made in the last line, temporarily add a newline at the end, to avoid
+        # line shifting when deleting and inserting the current_line
+        cursor_address = self.text_editor.index(tk.INSERT)
+        cursor_line = int(cursor_address.split('.')[0])
+        last_line_address = self.text_editor.index('end')
+        last_line = int(last_line_address.split('.')[0])
+        is_in_last_line = cursor_line == last_line - 1
+        if is_in_last_line:
+            self.text_editor.insert("end", "\n")
         self.text_editor.delete("insert linestart", "insert lineend + 1c")
         self.text_editor.insert("insert linestart", current_line + '\n')
         self.text_editor.mark_set('insert', 'insert linestart -1l')
+        if is_in_last_line:
+            self.text_editor.delete("end-1l linestart", "end-1l lineend + 1c")
         self.reload_and_save()
 
     def set_editor_line_priority(self, new_priority_override=None):
@@ -2028,9 +2040,20 @@ class KanbanTxtViewer:
                 new_priority = f""
 
         current_line = self.set_priority(current_line, new_priority)
+        # if edit is made in the last line, temporarily add a newline at the end, to avoid
+        # line shifting when deleting and inserting the current_line
+        cursor_address = self.text_editor.index(tk.INSERT)
+        cursor_line = int(cursor_address.split('.')[0])
+        last_line_address = self.text_editor.index('end')
+        last_line = int(last_line_address.split('.')[0])
+        is_in_last_line = cursor_line == last_line - 1
+        if is_in_last_line:
+            self.text_editor.insert("end", "\n")
         self.text_editor.delete("insert linestart", "insert lineend + 1c")
         self.text_editor.insert("insert linestart", current_line + '\n')
         self.text_editor.mark_set('insert', 'insert linestart -1l')
+        if is_in_last_line:
+            self.text_editor.delete("end-1l linestart", "end-1l lineend + 1c")
         self.reload_and_save()
 
     def move_to_todo(self, event=None):
