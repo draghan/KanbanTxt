@@ -270,6 +270,7 @@ class BrowseTagsDialog(simpledialog.Dialog):
         self.tags = tags
         self.selected_value = out_selected_tag
         self.last_entry_value = ""
+        self.is_choice_confirmed = False
         super().__init__(parent, f"Pick a {name} tag to insert")
 
     def set_focus_on_entry_widget(self):
@@ -374,12 +375,18 @@ class BrowseTagsDialog(simpledialog.Dialog):
             self.listbox_widget.insert('end', item)
         self.on_key_down(None)
 
+    def destroy(self):
+        if not self.is_choice_confirmed:
+            self.selected_value.set("")
+        super().destroy()
+
     def exit(self):
+        self.is_choice_confirmed = True
         self.destroy()
 
     def exit_cancel(self):
-        self.selected_value.set("")
         self.destroy()
+
     def buttonbox(self):
         ok_button = tk.Button(self, text=' Insert ', width=5, command=self.exit)
         ok_button.pack(side='right', padx=(0, 15), pady=(0, 10))
