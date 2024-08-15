@@ -22,6 +22,7 @@ from datetime import date
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import simpledialog
+from tkinter import ttk
 import tkinter.font as tkFont
 import argparse
 from idlelib.tooltip import Hovertip
@@ -242,7 +243,7 @@ class CustomizeViewDialog(simpledialog.Dialog):
         self.create_checkbox("Button 'Delete'", "", self.hide_button_delete, frame_hide_editor_elements)
         self.create_checkbox("Buttons 'Move line up/down'", "", self.hide_buttons_move_line_up_down, frame_hide_editor_elements)
         self.create_checkbox("Buttons 'Assign priority'", "", self.hide_buttons_assign_priority, frame_hide_editor_elements)
- 
+
         frame_ask_for = tk.LabelFrame(third_column_frame, text="Ask for confirmation, when: ")
         frame_ask_for.pack(fill='x', pady=(10, 0))
         self.create_checkbox("Adding new task", "", self.ask_for_add, frame_ask_for)
@@ -260,6 +261,131 @@ class CustomizeViewDialog(simpledialog.Dialog):
         ok_button = tk.Button(self, text='OK', width=5, command=self.exit)
         ok_button.pack(side='right', padx=15, pady=(0, 10))
         self.bind("<Escape>", lambda event: self.exit())
+        self.bind("<Return>", lambda event: self.exit())
+
+
+class BrowseTagsDialog(simpledialog.Dialog):
+    def __init__(self, parent, name, tags, out_selected_tag):
+        self.name = name
+        self.tags = tags
+        self.selected_value = out_selected_tag
+        self.last_entry_value = ""
+        super().__init__(parent, f"Pick a {name} tag to insert")
+
+    def set_focus_on_entry_widget(self):
+        self.entry_widget.focus_set()
+        self.set_on_zero()
+
+    def body(self, frame):
+        frame_tags = tk.LabelFrame(frame, text=f"Available {self.name} tags: ", width=200)
+        frame_tags.grid(row=0, column=0, padx=10, pady=10, sticky=tk.EW)
+
+        self.entry_widget = tk.Entry(frame_tags, width=100)
+        self.entry_widget.grid(row=0, column=0, padx=10, pady=10)
+        self.entry_widget.bind('<KeyRelease>', self.on_key_pressed)
+        self.entry_widget.bind('<Up>', self.on_key_up)
+        self.entry_widget.bind('<Down>', self.on_key_down)
+
+        self.values = []
+        for tag in self.tags:
+            self.values.append(tag)
+        self.listbox_widget = tk.Listbox(frame_tags)
+        self.listbox_widget.grid(row=1, column=0, padx=10, pady=10, sticky=tk.NSEW)
+        self.listbox_widget.bind('<<ListboxSelect>>', self.on_selected)
+        self.parent.after(100, self.set_focus_on_entry_widget)
+
+        self.scrollbar = tk.Scrollbar(frame_tags)
+        self.scrollbar.grid(row=1, column=1, sticky=tk.NS)
+        self.listbox_widget.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.config(command=self.listbox_widget.yview)
+        self.update_data(self.values)
+
+    def on_key_up(self, event):
+        curselection = self.listbox_widget.curselection()
+        selected_index = 0
+        if len(curselection) > 0:
+            selected_index = int(self.listbox_widget.curselection()[0])
+        index = selected_index - 1
+        size = self.listbox_widget.size()
+        if size > 0:
+            if index < 0:
+                index = size - 1
+            self.listbox_widget.select_clear(0, "end")
+            self.listbox_widget.select_set(index)
+            self.listbox_widget.event_generate("<<ListboxSelect>>")
+            self.listbox_widget.see(index)
+            self.listbox_widget.activate(index)
+            self.scrollbar.update_idletasks()
+
+    def on_key_down(self, event):
+        curselection = self.listbox_widget.curselection()
+        selected_index = 0
+        if len(curselection) > 0:
+            selected_index = int(self.listbox_widget.curselection()[0])
+        index = selected_index + 1
+        size = self.listbox_widget.size()
+        if size > 0:
+            if index >= size:
+                index = 0
+            self.listbox_widget.select_clear(0, "end")
+            self.listbox_widget.select_set(index)
+            self.listbox_widget.event_generate("<<ListboxSelect>>")
+            self.listbox_widget.see(index)
+            self.listbox_widget.activate(index)
+            self.scrollbar.update_idletasks()
+
+    def set_on_zero(self):
+        index = 0
+        size = self.listbox_widget.size()
+        if size > 0:
+            self.listbox_widget.select_clear(0, "end")
+            self.listbox_widget.select_set(index)
+            self.listbox_widget.event_generate("<<ListboxSelect>>")
+            self.listbox_widget.see(index)
+            self.listbox_widget.activate(index)
+            self.scrollbar.update_idletasks()
+
+    def on_selected(self, event):
+        w = event.widget
+        index = int(w.curselection()[0])
+        value = w.get(index)
+        self.selected_value.set(value)
+
+    def on_key_pressed(self, event):
+        value = event.widget.get()
+        if value == self.last_entry_value:
+            return
+        self.last_entry_value = value
+        if value == '':
+            data = self.values
+        else:
+            data = []
+            for item in self.values:
+                if value.lower() in item.lower():
+                    data.append(item)
+        self.update_data(data)
+        self.set_on_zero()
+        self.scrollbar.update_idletasks()
+
+    def update_data(self, data):
+        self.selected_value.set("")
+        self.listbox_widget.delete(0, 'end')
+        for item in data:
+            self.listbox_widget.insert('end', item)
+        self.on_key_down(None)
+
+    def exit(self):
+        self.destroy()
+
+    def exit_cancel(self):
+        self.selected_value.set("")
+        self.destroy()
+    def buttonbox(self):
+        ok_button = tk.Button(self, text=' Insert ', width=5, command=self.exit)
+        ok_button.pack(side='right', padx=(0, 15), pady=(0, 10))
+        cancel_button = tk.Button(self, text=' Cancel  ', width=5, command=self.exit_cancel)
+        cancel_button.pack(side='right', padx=(0, 15), pady=(0, 10))
+        self.bind("<Escape>", lambda event: self.exit_cancel())
         self.bind("<Return>", lambda event: self.exit())
 
 
@@ -471,6 +597,8 @@ class KanbanTxtViewer:
         self.main_window.bind('<Escape>', self.deactivate_search_input)
         self.main_window.bind('<Control-MouseWheel>', self.on_control_scroll)
         self.main_window.bind('<Alt-v>', self.on_customize_view_button)
+        self.main_window.bind('<Control-plus>', self.on_browse_project_tags)
+        self.main_window.bind('<Control-at>', self.on_browse_context_tags)
 
         self.main_window.title('KanbanTxt')
         icon_path = pathlib.Path('icons8-kanban-64.png')
@@ -673,6 +801,28 @@ class KanbanTxtViewer:
 
         self.drop_areas.clear()
         self.clear_drop_areas_frame()
+
+    def on_browse_tags(self, tagname):
+        tags = {}
+        for task_data in self.cards_data:
+            temp_list = task_data[tagname]
+            for elem in temp_list:
+                tag = elem[tagname]
+                if tag not in tags:
+                    tags[tag] = 1
+                else:
+                    tags[tag] += 1
+        selected_tag = tk.StringVar(value="")
+        BrowseTagsDialog(self.main_window, tagname, tags, selected_tag)
+        if len(selected_tag.get()) > 0:
+            index = self.text_editor.index(tk.INSERT)
+            self.text_editor.insert(index, f" {selected_tag.get()} ")
+
+    def on_browse_project_tags(self, event=None):
+        self.on_browse_tags("project")
+
+    def on_browse_context_tags(self, event=None):
+        self.on_browse_tags("context")
 
     def on_customize_view_button(self, event=None):
         show_project_var = tk.IntVar(value=self.show_project)
@@ -918,11 +1068,13 @@ class KanbanTxtViewer:
             f'{self.KANBAN_KEY}:{self.KANBAN_VAL_IN_PROGRESS} \t—  {self.COLUMN_1_NAME}\n'
             f'{self.KANBAN_KEY}:{self.KANBAN_VAL_VALIDATION} \t—  {self.COLUMN_2_NAME}\n'
             f'x \t\t—  {self.COLUMN_3_NAME}\n'
-            'F5,  Ctrl + s \t—  refresh and save\n'
-            'Alt + ↑ / ↓ \t—  move line up / down\n'
-            'Alt + v \t\t—  customize view\n'
-            'Ctrl + f \t\t—  filter tasks\n'
-            'ESC \t\t—  close filter/customize view\n',
+            '[F5] /  [Ctrl] + [s] \t—  refresh and save\n'
+            '[Alt] + [↑] / [↓] \t—  move line up / down\n'
+            '[Alt] + [v] \t\t—  customize view\n'
+            '[Ctrl] + [f] \t\t—  filter tasks\n'
+            '[Ctrl] + [+] \t\t—  search and pick from available project tags\n'
+            '[Ctrl] + [@] \t\t—  search and pick from available context tags\n'
+            '[ESC] \t\t—  close filter/customize view\n',
             bg=self.COLORS['editor-background'],
             anchor=tk.NW,
             justify='left',
@@ -1390,7 +1542,7 @@ class KanbanTxtViewer:
 
         todo_list = p_todo_txt.split("\n")
 
-        cards_data = []
+        self.cards_data = []
         for index, task_txt in enumerate(todo_list):
             if len(task_txt) != 0:
                 task_data = re.match(
@@ -1464,7 +1616,7 @@ class KanbanTxtViewer:
 
                 card_parent = self.ui_columns[category].content
 
-                cards_data.append({
+                self.cards_data.append({
                     'parent': card_parent,
                     'subject': subject,
                     'bg': card_bg,
@@ -1482,8 +1634,8 @@ class KanbanTxtViewer:
                 })
 
         sort_method = SORT_METHODS[self.sort_method_idx]
-        cards_data.sort(key=sort_method['f'], reverse=sort_method['rev'])
-        for card in cards_data:
+        self.cards_data.sort(key=sort_method['f'], reverse=sort_method['rev'])
+        for card in self.cards_data:
             index = card['index']
             if self.filter is not None:
                 index = self.non_filtered_content_line_mapping[index]
@@ -1532,12 +1684,12 @@ class KanbanTxtViewer:
             ui_column.content.update()
             tmp_frame.destroy()
             ui_column.content.pack(side='top', padx=10, pady=(0,10), fill='x')
-        
+
         self.update_editor_line_colors()
 
         self.main_window.update()
 
-        return tasks;
+        return tasks
 
 
     def draw_card(

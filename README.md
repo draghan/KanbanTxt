@@ -69,6 +69,20 @@ To close the filter view, press *esc* or click on the "close" button.
 
 By default, application uses a simple search, checking whether the line contains entered filter text, ignoring letters' case. You can do an advanced search using the regex mode, which you can turn on with the "use regex" checkbox.
 
+### Browse tags
+
+You can browse all tags defined in your todo and insert selected tag at the current cursor position.
+
+To browse project tags, press *ctrl + +* (control and plus).
+
+To browse context tags, press *ctrl + @* (control and at).
+
+In the tag selection window, you can use the search entry to filter tags and use mouse cursor or *up* and *down* arrows to select a tag to insert.
+
+You can use *enter* key or click on the "Insert" button to insert currently selected tag. Selected tag will be inserted at the current cursor position in the text editor. New tag will be surrounded with a single space from both sides.
+
+You can use *esc* key or click on the "Cancel" button to close the tag selection window without inserting any tag.  
+
 ### Move a card to another column
 
 I used the todo.txt special key-val tags to define in which column each task should appear.
@@ -121,7 +135,7 @@ You can make the task cards' font smaller or bigger by using *ctrl + scroll*.
 
 You can choose different order of displaying tasks in columns. 
 
-You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by selecting sorting order of you choosing.
+You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by selecting sorting order of your choice.
 
 Available orders:
 - Task priority (default):  
