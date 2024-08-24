@@ -1077,10 +1077,10 @@ class KanbanTxtViewer:
             f'x \t\t—  {self.COLUMN_3_NAME}\n'
             '[F5] /  [Ctrl] + [s] \t—  refresh and save\n'
             '[Alt] + [↑] / [↓] \t—  move line up / down\n'
-            '[Alt] + [v] \t\t—  customize view\n'
-            '[Ctrl] + [f] \t\t—  filter tasks\n'
-            '[Ctrl] + [+] \t\t—  search and pick from available project tags\n'
-            '[Ctrl] + [@] \t\t—  search and pick from available context tags\n'
+            '[Alt] + [v] \t—  customize view\n'
+            '[Ctrl] + [f] \t—  filter tasks\n'
+            '[Ctrl] + [+] \t—  search and pick from available project tags\n'
+            '[Ctrl] + [@] \t—  search and pick from available context tags\n'
             '[ESC] \t\t—  close filter/customize view\n',
             bg=self.COLORS['editor-background'],
             anchor=tk.NW,

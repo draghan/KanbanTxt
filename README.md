@@ -1,19 +1,23 @@
 # KanbanTxt
 
-A light todo.txt editor that display the to do list as a kanban board. See [here](https://github.com/todotxt/todo.txt) for a detailed description of the todo.txt format.
+This is a fork of [@KrisNumber24](https://www.github.com/KrisNumber24)'s KanbanTxt, providing extended functionality in terms of covering todo.txt features: multiple project and context tags, support for special key-val tags, proper support for priorities, as well as UI improvements: customizable interface, searching, tags' browsing, drag and drop features and more.   
 
-The goal was to have a one file script that open a tkinter GUI to edit my todo.txt files and displaying a kanban view of my tasks.
+A light todo.txt editor that display the to do list as a kanban board. See [here](https://github.com/todotxt/todo.txt) for a detailed description of the todo.txt format.
 
 The interface looks as follows, with full support of the todo.txt format:
 
-![Screenshot of the KanbanTxt window](./screenshot.png)
+![Screenshot of the KanbanTxt window](./screenshots/mainWindow.png)
 
-Application icon from [icons8](https://icons8.com/icon/E1n2Jj29WyVH/kanban). 
+The UI is customizable, example of dark mode, with hidden elements: memo, task cards' index and most of the control buttons:
+
+![Screenshot of a customized KanbanTxt window](./screenshots/customized.png)
+
+Application icon comes from [icons8](https://icons8.com/icon/E1n2Jj29WyVH/kanban). 
 
 ## Prerequisites
 
-- Python 3
-- Know the todo.txt format (see [here](https://github.com/todotxt/todo.txt) for a detailed description of the todo.txt format)
+- Python 3,
+- knowledge of the [todo.txt format](https://github.com/todotxt/todo.txt).
 
 ### Linux
 
@@ -28,7 +32,7 @@ sudo apt install python3-tk idle3
 
 ## Installation
 
-Just download the KanbanTxt.py script.
+No installation steps are required.
 
 ## Usage
 
@@ -49,7 +53,22 @@ By adding the `--file` parameter it is possible to open a todo.txt file while op
 python KanbanTxt.py --file=path/to/my/todo.txt
 ```
 
-Or the button "Open" in the GUI allows to open a file through GUI.
+### Interface overview
+
+The UI consists of several areas, shown on the screenshot below.
+
+![Screenshot of a customized KanbanTxt window](./screenshots/mainWindowOverview.png)
+
+- 1 - 'customize view' button,
+- 2 - 'save file and reload UI' button,
+- 3 - switch for the dark/light mode,
+- 4 - open file button,
+- a - memo area, for quick help,
+- b - filter tasks area,
+- c - text editor for your kanban text.todo file,
+- d - task control buttons area,
+- e - kanban board panel, consisting of columns with assigned task cards, which you can select, drag between columns and drag to change priority.
+
 
 ### Edit the to do list
 
@@ -57,13 +76,17 @@ To edit the to do list you can use the integrated text editor to the left of the
 
 ### Select a task
 
-You can click on the text in a task card to move the cursor of text editor to the right line.
+You can click on the task card to move the cursor of text editor to the corresponding line.
 
-### Search a task
+### Search for a task
 
 To search for tasks, press *ctrl + f* or use the text input box "filter tasks:" above the text editor. Confirm by pressing the *enter* key or the "apply" button.
 
-The application will switch to the filter view. In this view you can modify filtered tasks and save the file, but you can't remove or add any new tasks, also opening new file is not possible.
+The application will switch to the filter view.
+
+![Screenshot of a filter view](./screenshots/filterView.png)
+
+In this view you can modify filtered tasks and save the file, but you can't remove or add any new tasks, also opening new file is not possible.
 
 To close the filter view, press *esc* or click on the "close" button.
 
@@ -72,6 +95,8 @@ By default, application uses a simple search, checking whether the line contains
 ### Browse tags
 
 You can browse all tags defined in your todo and insert selected tag at the current cursor position.
+
+![Screenshot of a tags browsing window](./screenshots/browseTags.png)
 
 To browse project tags, press *ctrl + +* (control and plus).
 
@@ -92,9 +117,11 @@ I used the todo.txt special key-val tags to define in which column each task sho
 - `x ` prefix: This task is finished and goes to the *Done* column.
 - A task without a `knbn` key tag and without the `x ` prefix, goes to the *To Do* column, waiting to be treated.
 
-You can grab any task card from its current column and drag it left/right, to drop it to the desired state.
+You can grab any task card from its current column and drag it left/right, to drop it to the desired state:
 
-You can also use *ctrl + 1-5* to move the task under the text editor cursor to the corresponding column.
+![Screenshot of dragging a task card to another column](./screenshots/dragToColumn.png)
+
+You can also use *ctrl + 1-5* to move the selected task to the corresponding column.
 1. To Do
 2. Change priority
 3. In progress
@@ -105,9 +132,11 @@ Or you can do the same by using the buttons under the editor.
 
 ### Assign priority
 
-To assign priority, use the last row of buttons under the editor.
+To assign priority, you can grab any task card from its current position in column and drag it up/down, to drop it to the desired priority.
 
-You can also grab any task card from its current position in column and drag it up/down, to drop it to the desired priority.
+![Screenshot of dragging a task card to a different priority](./screenshots/dragToPriority.png)
+
+You can also use the last row of buttons under the editor.
 
 Tasks are sorted in columns by their priority. 
 
@@ -117,25 +146,31 @@ Tasks' priority is displayed next to their contents, with hot-map color coding f
 
 ### Reorder the tasks in the text editor
 
-The buttons with an up and a bottom arrow allow to move the current line of editor one step up or down. The same action can be done with the shortcut *alt + ↑* and *alt + ↓*. Note, that tasks are sorted by priority first, and then by the line number.
+You can change the order of tasks in the text editor, but keep in mind that this will affect their displayed in the task card IDs.
+
+The buttons with an up and a bottom arrow allow to move the current line of editor one step up or down. The same action can be done with the shortcut *alt + ↑* and *alt + ↓*. Note, that by default tasks in the kanban board are sorted by priority first, and then by the line number. You can change this behavior from the customize view panel.
 
 ### Show the time spent on a task
 
-Using the "+ date" button add the date of the day at the begining of a line in the editor. This allows to define a creation date and a completion date to the task.
+Using the "+ date" button add the date of the day at the beginning of a line in the editor. This allows to define a creation date and a completion date to the task.
 
 If a creation date is provided, KanbanTxt will display the number of days elapsed from the creation date to the current day on the task. If a completion date is provided, KanbanTxt will add a label to show the time spent on the task.
 
 ### Customize interface
 
+Most of the customization options are available from the 'customize view' dialog.
+
+![Screenshot of the customize view dialog](./screenshots/customizeView.png)
+
+To access it, press the eye button on the top left or *alt + v*.
+
 #### Change font size
 
-You can make the task cards' font smaller or bigger by using *ctrl + scroll*.
+You can make the task cards' font smaller or bigger from the customize view dialog or by using *ctrl + scroll* on the kanban board panel.
 
 #### Sort tasks in columns
 
-You can choose different order of displaying tasks in columns. 
-
-You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by selecting sorting order of your choice.
+From the customize view dialog you can choose different order of displaying tasks in columns.
 
 Available orders:
 - Task priority (default):  
@@ -168,17 +203,13 @@ Available orders:
 
 You can hide unwanted elements of task cards, for example the special key-value data tags.
 
-You can do this from the 'Customize view' menu (press the eye button on the top left or *alt + v*) by deselecting elements you want to hide.
+You can do this from the 'Customize view' dialog, by deselecting elements you want to hide.
 
-You can disable basically every element of a task card (including its main content, which might be useful if you want to pick blindly some task to do).
+You can disable basically every element of a task card, including its main content (which might be useful if you want to pick blindly some random task to do).
 
 #### Use the dark theme
 
-A little switch with a sun and a moon on the top left corner of the application allows to switch between light and dark mode. This setting is not saved and the program always start with the light theme. But you can launch KanbanTxt in dark mode by running: 
-
-```
-python KanbanTxt.py --darkmode
-```
+A little switch with a sun and a moon on the top left corner of the application allows to switch between light and dark mode.
 
 ### Current support of the todo.txt format
 
