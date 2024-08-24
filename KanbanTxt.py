@@ -1781,7 +1781,7 @@ class KanbanTxtViewer:
             duration_label = tk.Label(
                 ui_card, 
                 text = duration_string,
-                fg=self.COLORS[state], 
+                fg=self.COLORS['column3'], 
                 bg=ui_card['bg'], 
                 anchor=tk.W, 
                 justify='left',
