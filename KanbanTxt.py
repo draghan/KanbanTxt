@@ -544,7 +544,9 @@ class KanbanTxtViewer:
         CONFIG_KEY_COL_3_NAME: "Done",
     }
 
-    def __init__(self, file='', darkmode=None) -> None:
+    def __init__(self, file='', darkmode=None, config_path=None) -> None:
+        if config_path:
+            self.CONFIG_PATH = config_path
         self.config = None
         if os.path.exists(self.CONFIG_PATH):
             with open(self.CONFIG_PATH, "r") as config_file:
@@ -2811,7 +2813,7 @@ class KanbanTxtViewer:
 
 def main(args):
     
-    app = KanbanTxtViewer(args.file, args.darkmode)
+    app = KanbanTxtViewer(args.file, args.darkmode, args.config)
     if args.dir and os.path.isdir(args.dir):
         app.load_directory(args.dir)
     if os.name == 'nt':
@@ -2825,6 +2827,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description='Display a todo.txt file as a kanban and allow to edit it')
     arg_parser.add_argument('--file', help='Path to a todo.txt file', required=False, default='', type=str)
     arg_parser.add_argument('--dir', help='Path to a directory whose .txt files should be opened, each in its own tab', required=False, default='', type=str)
+    arg_parser.add_argument('--config', help='Path to a custom config file (default: config.json)', required=False, default='', type=str)
     arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, default=None, action='store_true')
     args = arg_parser.parse_args()
     main(args)
