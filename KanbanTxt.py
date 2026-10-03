@@ -396,6 +396,36 @@ class BrowseTagsDialog(simpledialog.Dialog):
         self.bind("<Return>", lambda event: self.exit())
 
 
+class OpenFileChoiceDialog(simpledialog.Dialog):
+    def __init__(self, parent, filename):
+        self.filename = filename
+        self.choice = None
+        super().__init__(parent, "Open file")
+
+    def body(self, frame):
+        tk.Label(
+            frame,
+            text=f"How do you want to open\n'{self.filename}'?",
+            justify='left'
+        ).pack(padx=20, pady=20)
+        return None
+
+    def buttonbox(self):
+        box = tk.Frame(self)
+        box.pack(pady=(0, 10))
+        tk.Button(box, text='Open in new tab', width=16,
+                  command=lambda: self.choose('new')).pack(side='left', padx=6)
+        tk.Button(box, text='Replace current tab', width=18,
+                  command=lambda: self.choose('replace')).pack(side='left', padx=6)
+        tk.Button(box, text='Cancel', width=8,
+                  command=lambda: self.choose(None)).pack(side='left', padx=6)
+        self.bind('<Escape>', lambda event: self.choose(None))
+
+    def choose(self, choice):
+        self.choice = choice
+        self.destroy()
+
+
 class KanbanTxtViewer:
     THEMES = {
         'LIGHT_COLORS': {
@@ -571,13 +601,23 @@ class KanbanTxtViewer:
             darkmode = self.get_value_from_config_or_default(self.CONFIG_KEY_DARKMODE)
         self.darkmode = darkmode
 
-        self.file = file
-
         self.current_date = date.today()
 
         self.ui_columns = {}
         for col in self.COLUMNS_NAMES:
             self.ui_columns[col] = []
+
+        # Each document is one open file shown in its own tab
+        self.documents = []
+        self.current_doc_index = -1
+        if os.path.isfile(file):
+            self.documents.append({'file': file, 'content': None})
+        else:
+            self.documents.append({'file': '', 'content': None})
+        self.current_doc_index = 0
+        self.file = self.documents[0]['file']
+        self.tab_bar = None
+        self.tab_buttons = []
 
         self._after_id = -1
 
@@ -624,13 +664,14 @@ class KanbanTxtViewer:
         self.main_window.bind('<Control-s>', self.reload_and_create_file)
         self.main_window.bind('<Control-o>', self.open_file_dialog)
 
+        self.draw_tab_bar()
+
         self.draw_editor_panel()
 
         self.draw_content_frame()
 
-        # Load the file provided in arguments if there is one
-        if os.path.isfile(self.file):
-            self.load_txt_file()
+        # Load the active document (either the file provided in arguments or an empty one)
+        self.activate_current_document()
 
     def activate_search_input(self, event):
         if self.filter is not None:
@@ -992,13 +1033,79 @@ class KanbanTxtViewer:
         except Exception as error:
             tk.messagebox.showwarning(title="Error writing config file", message=f"Can't save the file '{self.CONFIG_PATH}', make sure you have the right to write here!")
 
+    def draw_tab_bar(self):
+        self.tab_bar = tk.Frame(self.main_window, bg=self.COLORS['editor-background'])
+        self.tab_bar.grid(row=0, column=0, columnspan=3, sticky='ew')
+        self.main_window.grid_rowconfigure(0, weight=0)
+        self.tab_buttons = []
+        self.refresh_tab_bar()
+
+    def refresh_tab_bar(self):
+        if self.tab_bar is None:
+            return
+        for child in self.tab_bar.winfo_children():
+            child.destroy()
+        self.tab_buttons = []
+        for index, doc in enumerate(self.documents):
+            self.create_tab_widget(index, doc)
+        add_button = tk.Label(
+            self.tab_bar,
+            text='+',
+            bg=self.COLORS['editor-background'],
+            fg=self.COLORS['button'],
+            font=('Free Serif', 14),
+            padx=8,
+            cursor='hand2')
+        add_button.pack(side='left', padx=4, pady=2)
+        add_button.bind('<Button-1>', self.add_new_tab)
+        add_button.bind('<Enter>', lambda e: e.widget.config(
+            bg=self.COLORS['button'], fg=self.COLORS['main-background']))
+        add_button.bind('<Leave>', lambda e: e.widget.config(
+            bg=self.COLORS['editor-background'], fg=self.COLORS['button']))
+
+    def create_tab_widget(self, index, doc):
+        is_active = index == self.current_doc_index
+        bg = self.COLORS['card-background'] if is_active else self.COLORS['editor-background']
+        tab = tk.Frame(self.tab_bar, bg=self.COLORS['button'], bd=0)
+        tab.pack(side='left', padx=(4, 0), pady=(4, 0))
+        inner = tk.Frame(tab, bg=bg)
+        inner.pack(padx=1, pady=1)
+
+        name = pathlib.Path(doc['file']).name if doc.get('file') else 'Untitled'
+        label = tk.Label(
+            inner,
+            text=name,
+            bg=bg,
+            fg=self.COLORS['main-text'],
+            font=tkFont.nametofont('main'),
+            padx=6,
+            pady=2,
+            cursor='hand2')
+        label.pack(side='left')
+        close = tk.Label(
+            inner,
+            text='✕',
+            bg=bg,
+            fg=self.COLORS['main-text'],
+            font=('Arial', 8),
+            padx=4,
+            cursor='hand2')
+        close.pack(side='left')
+
+        label.bind('<Button-1>', lambda e, idx=index: self.switch_to_document(idx))
+        inner.bind('<Button-1>', lambda e, idx=index: self.switch_to_document(idx))
+        close.bind('<Button-1>', lambda e, idx=index: self.close_document(idx))
+        close.bind('<Enter>', lambda e: e.widget.config(fg=self.COLORS['important']))
+        close.bind('<Leave>', lambda e: e.widget.config(fg=self.COLORS['main-text']))
+        self.tab_buttons.append(tab)
+
     def draw_editor_panel(self):
         self.widgets_for_disable_in_filter_mode.clear()
 
         # EDITION FRAME
         edition_frame = tk.Frame(self.main_window, bg=self.COLORS['editor-background'], width=20)
-        edition_frame.grid(row=0, column=0, sticky=tk.NSEW)
-        self.main_window.grid_rowconfigure(0, weight=1)
+        edition_frame.grid(row=1, column=0, sticky=tk.NSEW)
+        self.main_window.grid_rowconfigure(1, weight=1)
         self.main_window.grid_columnconfigure(0, weight=1)
 
         # HEADER
@@ -1016,6 +1123,18 @@ class KanbanTxtViewer:
             disable_in_filter_view=True
         )
         load_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
+
+        open_dir_button = self.create_button(
+            editor_header,
+            text="🗀",
+            bordersize=2,
+            color=self.COLORS['button'],
+            activetextcolor=self.COLORS['main-background'],
+            command=self.open_directory_dialog,
+            tooltip="Open directory (each .txt file in its own tab)",
+            disable_in_filter_view=True
+        )
+        open_dir_button.pack(side="right", padx=(10,0), pady=10, anchor=tk.NE)
 
         save_button = self.create_button(
             editor_header,
@@ -1374,7 +1493,7 @@ class KanbanTxtViewer:
             highlightthickness=0, 
             relief=tk.FLAT
         )
-        self.content_canvas.grid(row=0, column=1, sticky=tk.NSEW, padx=10, pady=10)
+        self.content_canvas.grid(row=1, column=1, sticky=tk.NSEW, padx=10, pady=10)
         
         # Give more space to the kanban view
         self.main_window.grid_columnconfigure(1, weight=6)
@@ -1388,7 +1507,7 @@ class KanbanTxtViewer:
             orient="vertical", 
             command=self.content_canvas.yview
         )
-        content_scrollbar.grid(row=0, column=2, sticky='ns')
+        content_scrollbar.grid(row=1, column=2, sticky='ns')
         
         self.canvas_frame = self.content_canvas.create_window(
             (0, 0), window=self.content_frame, anchor="nw")
@@ -1880,12 +1999,211 @@ class KanbanTxtViewer:
         return "break"
 
     def open_file_dialog(self, event=None):
-        """Open a dialog to select a file to load"""
-        self.file = filedialog.askopenfilename(
-            initialdir='.', 
+        """Open a dialog to select a file, then ask where to open it"""
+        selected_file = filedialog.askopenfilename(
+            initialdir='.',
             filetypes=[("todo list file", "*todo.txt"), ("txt file", "*.txt")],
             title='Choose a todo list to display')
-        self.load_txt_file()
+        if not selected_file:
+            return
+        # if the current tab is an empty unsaved document, reuse it instead of asking
+        if self.is_current_document_empty_untitled():
+            self.open_file_in_current_tab(selected_file)
+            return
+        dialog = OpenFileChoiceDialog(self.main_window, os.path.basename(selected_file))
+        choice = dialog.choice
+        if choice == 'new':
+            self.open_file_in_new_tab(selected_file)
+        elif choice == 'replace':
+            self.open_file_in_current_tab(selected_file)
+
+    def open_directory_dialog(self, event=None):
+        """Open every .txt file from a directory, each in its own tab"""
+        directory = filedialog.askdirectory(
+            initialdir='.',
+            title='Choose a directory containing todo lists')
+        if not directory:
+            return
+
+        files = []
+        for name in sorted(os.listdir(directory)):
+            full_path = os.path.join(directory, name)
+            if os.path.isfile(full_path) and name.lower().endswith('.txt'):
+                files.append(full_path)
+
+        if not files:
+            tk.messagebox.showinfo(
+                title='No files found',
+                message='No .txt files were found in the selected directory.')
+            return
+
+        self.persist_active_document()
+        self.prune_empty_documents()
+        for file in files:
+            if self.find_document_by_file(file) is None:
+                self.documents.append({'file': file, 'content': None})
+        self.current_doc_index = len(self.documents) - 1
+        self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def find_document_by_file(self, file):
+        target = os.path.realpath(file)
+        for index, doc in enumerate(self.documents):
+            doc_file = doc.get('file', '')
+            if doc_file and os.path.realpath(doc_file) == target:
+                return index
+        return None
+
+    def prune_empty_documents(self):
+        current_doc = self.documents[self.current_doc_index]
+        self.documents = [
+            doc for doc in self.documents
+            if doc.get('file') or (doc.get('content') or '').strip()
+        ]
+        try:
+            self.current_doc_index = next(
+                i for i, doc in enumerate(self.documents) if doc is current_doc)
+        except StopIteration:
+            self.current_doc_index = max(0, len(self.documents) - 1)
+
+    def is_current_document_empty_untitled(self):
+        if not (0 <= self.current_doc_index < len(self.documents)):
+            return False
+        doc = self.documents[self.current_doc_index]
+        if doc.get('file'):
+            return False
+        try:
+            content = self.text_editor.get("1.0", "end-1c")
+        except tk.TclError:
+            content = doc.get('content') or ''
+        return content.strip() == ''
+
+    def add_new_tab(self, event=None):
+        """Add a new empty untitled tab"""
+        self.persist_active_document()
+        self.documents.append({'file': '', 'content': ''})
+        self.current_doc_index = len(self.documents) - 1
+        self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def open_file_in_new_tab(self, file):
+        existing = self.find_document_by_file(file)
+        if existing is not None:
+            self.switch_to_document(existing)
+            return
+        self.persist_active_document()
+        self.documents.append({'file': file, 'content': None})
+        self.current_doc_index = len(self.documents) - 1
+        self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def open_file_in_current_tab(self, file):
+        self.persist_active_document()
+        existing = self.find_document_by_file(file)
+        if existing is not None and existing != self.current_doc_index:
+            del self.documents[existing]
+            if existing < self.current_doc_index:
+                self.current_doc_index -= 1
+        self.documents[self.current_doc_index] = {'file': file, 'content': None}
+        self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def switch_to_document(self, index):
+        if index == self.current_doc_index:
+            return
+        if index < 0 or index >= len(self.documents):
+            return
+        self.persist_active_document()
+        self.current_doc_index = index
+        self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def close_document(self, index):
+        if index < 0 or index >= len(self.documents):
+            return
+        if len(self.documents) == 1:
+            self.documents[0] = {'file': '', 'content': ''}
+            self.current_doc_index = 0
+            self.activate_current_document()
+            self.refresh_tab_bar()
+            return
+        self.persist_active_document()
+        del self.documents[index]
+        if index < self.current_doc_index:
+            self.current_doc_index -= 1
+        elif index == self.current_doc_index:
+            if self.current_doc_index >= len(self.documents):
+                self.current_doc_index = len(self.documents) - 1
+            self.activate_current_document()
+        self.refresh_tab_bar()
+
+    def persist_active_document(self):
+        """Store the active editor content into the active document and save it"""
+        if not (0 <= self.current_doc_index < len(self.documents)):
+            return
+        try:
+            content = self.text_editor.get("1.0", "end-1c")
+        except tk.TclError:
+            return
+        if self.filter is not None:
+            content = self.merge_filtered_with_original()
+        self.non_filtered_content = content
+        self.documents[self.current_doc_index]['content'] = content
+        self.documents[self.current_doc_index]['file'] = self.file
+        if self.file:
+            self.fwrite(self.file, content)
+
+    def update_active_document_state(self):
+        if 0 <= self.current_doc_index < len(self.documents):
+            self.documents[self.current_doc_index]['file'] = self.file
+            self.documents[self.current_doc_index]['content'] = self.non_filtered_content
+
+    def activate_current_document(self):
+        if not self.documents:
+            return
+        if not (0 <= self.current_doc_index < len(self.documents)):
+            self.current_doc_index = 0
+        doc = self.documents[self.current_doc_index]
+        self.file = doc.get('file', '')
+        self.reset_filter_state()
+        self.filter = None
+        self.non_filtered_content_line_mapping = None
+        content = doc.get('content')
+        if content is None:
+            if os.path.isfile(self.file):
+                content = self.fread(self.file)
+            else:
+                content = ''
+            doc['content'] = content
+        self.non_filtered_content = content
+        if self.file:
+            title = f"KanbanTxt - {pathlib.Path(self.file).name}"
+        else:
+            title = "KanbanTxt"
+        self.reload_ui_from_text(content, title)
+
+    def reset_filter_state(self):
+        if self.filter is None:
+            return
+        self.filter = None
+        self.non_filtered_content_line_mapping = None
+        if self.filter_view_message is not None:
+            try:
+                self.remove_custom_tooltip(self.filter_view_message)
+            except tk.TclError:
+                pass
+            self.filter_view_message = None
+        for widget in self.widgets_for_disable_in_filter_mode:
+            try:
+                widget.config(state='normal')
+            except tk.TclError:
+                pass
+        try:
+            self.filter_frame.configure(bg=self.COLORS['editor-background'])
+            self.clear_filter_button.configure(bg=self.COLORS['main-text'])
+            self.filter_entry_box.delete(0, 'end')
+        except tk.TclError:
+            pass
 
     def apply_filter(self, event=None):
         self.filter_frame.configure(bg=self.COLORS['project'])
@@ -1963,13 +2281,6 @@ class KanbanTxtViewer:
                 non_filtered_content[target_index] = filtered_content[i]
         return '\n'.join(non_filtered_content)
 
-    def load_txt_file(self):
-        if os.path.isfile(self.file):
-            content = self.fread(self.file)
-            title = f"KanbanTxt - {pathlib.Path(self.file).name}"
-            self.non_filtered_content = content
-            self.reload_ui_from_text(content, title)
-    
     def reload_ui_from_text(self, text=None, title=None):
         if text is None:
             text = self.text_editor.get("1.0", "end-1c")
@@ -2003,6 +2314,9 @@ class KanbanTxtViewer:
 
         self.text_editor.mark_set('insert', f"{selected_line}.0")
         self.text_editor.see('insert')
+
+        self.update_active_document_state()
+        self.refresh_tab_bar()
 
 
     def reload_and_create_file(self, event=None):
@@ -2085,6 +2399,7 @@ class KanbanTxtViewer:
         self.recreate_main_window()
 
     def recreate_main_window(self):
+        self.persist_active_document()
         window_geometry = self.main_window.geometry()
         window_state = self.main_window.state()
         width, height, x, y = re.split("[x+]", window_geometry)
