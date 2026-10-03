@@ -2024,7 +2024,10 @@ class KanbanTxtViewer:
             title='Choose a directory containing todo lists')
         if not directory:
             return
+        self.load_directory(directory)
 
+    def load_directory(self, directory):
+        """Open every .txt file from a directory, each in its own tab"""
         files = []
         for name in sorted(os.listdir(directory)):
             full_path = os.path.join(directory, name)
@@ -2809,6 +2812,8 @@ class KanbanTxtViewer:
 def main(args):
     
     app = KanbanTxtViewer(args.file, args.darkmode)
+    if args.dir and os.path.isdir(args.dir):
+        app.load_directory(args.dir)
     if os.name == 'nt':
         app.main_window.state('zoomed')
     app.main_window.mainloop()
@@ -2819,6 +2824,7 @@ if __name__ == '__main__':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('KanbanTxt')
     arg_parser = argparse.ArgumentParser(description='Display a todo.txt file as a kanban and allow to edit it')
     arg_parser.add_argument('--file', help='Path to a todo.txt file', required=False, default='', type=str)
+    arg_parser.add_argument('--dir', help='Path to a directory whose .txt files should be opened, each in its own tab', required=False, default='', type=str)
     arg_parser.add_argument('--darkmode', help='Is the UI should use dark theme', required=False, default=None, action='store_true')
     args = arg_parser.parse_args()
     main(args)
